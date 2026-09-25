@@ -24,6 +24,8 @@ struct CalendarRef: Identifiable, Hashable {
 @Observable
 final class CalendarStore {
     @ObservationIgnored weak var app: AppModel!
+    /// The calendar area's view state (range, popover, editor, scope dialog); see `CalendarUIState`.
+    @ObservationIgnored private(set) lazy var ui = CalendarUIState(store: self)
 
     /// account → calendars (Google's order).
     private(set) var calendarLists: [String: [CalendarListEntry]] = [:]
