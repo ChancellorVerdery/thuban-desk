@@ -1,0 +1,81 @@
+{
+ "kind": "calendar#events",
+ "summary": "Classes",
+ "timeZone": "America/New_York",
+ 
+ "items": [
+  {
+   "id": "allday1",
+   "status": "confirmed",
+   "summary": "Homework 4 due",
+   "start": {
+    "date": "2026-09-25"
+   },
+   "end": {
+    "date": "2026-09-26"
+   },
+   "created": "2026-09-01T12:00:00.000Z",
+   "updated": "2026-09-02T12:00:00.000Z"
+  },
+  {
+   "id": "timed1",
+   "status": "confirmed",
+   "summary": "Study group",
+   "description": "Bring <b>Q3</b>",
+   "location": "Atkins 244",
+   "start": {
+    "dateTime": "2026-09-24T19:00:00-04:00",
+    "timeZone": "America/New_York"
+   },
+   "end": {
+    "dateTime": "2026-09-24T20:30:00-04:00",
+    "timeZone": "America/New_York"
+   },
+   "recurringEventId": "series1",
+   "originalStartTime": {
+    "dateTime": "2026-09-24T19:00:00-04:00",
+    "timeZone": "America/New_York"
+   },
+   "attendees": [
+    {
+     "email": "maya.chen@students.example.edu",
+     "displayName": "Maya Chen",
+     "organizer": true,
+     "responseStatus": "accepted"
+    },
+    {
+     "email": "amorgan@example.edu",
+     "self": true,
+     "responseStatus": "needsAction"
+    },
+    {
+     "email": "x@y.z",
+     "responseStatus": "somethingNew"
+    }
+   ],
+   "organizer": {
+    "email": "maya.chen@students.example.edu",
+    "displayName": "Maya Chen"
+   },
+   "hangoutLink": "https://meet.google.com/abc-defg-hij",
+   "reminders": {
+    "useDefault": false,
+    "overrides": [
+     {
+      "method": "popup",
+      "minutes": 10
+     }
+    ]
+   },
+   "eventType": "default"
+  },
+  {
+   "id": "cancelled1",
+   "status": "cancelled",
+   "recurringEventId": "series1",
+   "originalStartTime": {
+    "dateTime": "2026-10-01T19:00:00-04:00"
+   }
+  }
+ ]
+}

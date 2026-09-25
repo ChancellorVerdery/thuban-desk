@@ -1,0 +1,144 @@
+{
+ "id": "18a1",
+ "threadId": "18a0",
+ "labelIds": [
+  "INBOX",
+  "UNREAD",
+  "Label_7"
+ ],
+ "snippet": "Hi &amp; welcome &#39;friend&#39;",
+ "historyId": "12",
+ "internalDate": "1790273640000",
+ "payload": {
+  "partId": "",
+  "mimeType": "multipart/mixed",
+  "filename": "",
+  "headers": [
+   {
+    "name": "From",
+    "value": "=?UTF-8?Q?Ren=C3=A9e_O=E2=80=99Brien?= <renee@example.com>"
+   },
+   {
+    "name": "To",
+    "value": "\"Morgan, Alex\" <alex.morgan@example.com>, maya.chen@students.example.edu"
+   },
+   {
+    "name": "Cc",
+    "value": "Sam <sam@example.com>"
+   },
+   {
+    "name": "Subject",
+    "value": "=?UTF-8?B?Q2Fmw6kgcGxhbnMg4piV?= for Friday"
+   },
+   {
+    "name": "Date",
+    "value": "Thu, 24 Sep 2026 14:14:00 -0400"
+   },
+   {
+    "name": "Message-ID",
+    "value": "<abc123@mail.example.com>"
+   },
+   {
+    "name": "References",
+    "value": "<r1@example.com> <r2@example.com>"
+   },
+   {
+    "name": "Content-Type",
+    "value": "multipart/mixed; boundary=\"mix\""
+   }
+  ],
+  "body": {
+   "size": 0
+  },
+  "parts": [
+   {
+    "partId": "0",
+    "mimeType": "multipart/alternative",
+    "filename": "",
+    "headers": [
+     {
+      "name": "Content-Type",
+      "value": "multipart/alternative; boundary=\"alt\""
+     }
+    ],
+    "body": {
+     "size": 0
+    },
+    "parts": [
+     {
+      "partId": "0.0",
+      "mimeType": "text/plain",
+      "filename": "",
+      "headers": [
+       {
+        "name": "Content-Type",
+        "value": "text/plain; charset=\"UTF-8\""
+       }
+      ],
+      "body": {
+       "size": 20,
+       "data": "UGxhaW4gY2Fmw6kgYm9keQpMaW5lIHR3bw"
+      }
+     },
+     {
+      "partId": "0.1",
+      "mimeType": "text/html",
+      "filename": "",
+      "headers": [
+       {
+        "name": "Content-Type",
+        "value": "text/html; charset=\"UTF-8\""
+       }
+      ],
+      "body": {
+       "size": 40,
+       "data": "PHA-SFRNTCA8Yj5jYWbDqTwvYj4gYm9keTwvcD48aW1nIHNyYz0iY2lkOmxvZ28xIj4"
+      }
+     }
+    ]
+   },
+   {
+    "partId": "1",
+    "mimeType": "image/png",
+    "filename": "",
+    "headers": [
+     {
+      "name": "Content-Type",
+      "value": "image/png"
+     },
+     {
+      "name": "Content-ID",
+      "value": "<logo1>"
+     },
+     {
+      "name": "Content-Disposition",
+      "value": "inline"
+     }
+    ],
+    "body": {
+     "size": 4,
+     "data": "wolQTkc"
+    }
+   },
+   {
+    "partId": "2",
+    "mimeType": "application/pdf",
+    "filename": "Syllabus Fall.pdf",
+    "headers": [
+     {
+      "name": "Content-Type",
+      "value": "application/pdf; name=\"Syllabus Fall.pdf\""
+     },
+     {
+      "name": "Content-Disposition",
+      "value": "attachment; filename=\"Syllabus Fall.pdf\""
+     }
+    ],
+    "body": {
+     "attachmentId": "ANGjdJ8",
+     "size": 48213
+    }
+   }
+  ]
+ }
+}

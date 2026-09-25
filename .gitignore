@@ -1,0 +1,12 @@
+# Xcode / SwiftPM
+.build/
+.build-*/
+DerivedData/
+*.xcuserstate
+xcuserdata/
+.swiftpm/xcode/
+Packages/*/.build/
+# macOS
+.DS_Store
+# Claude worktrees
+.claude/worktrees/
