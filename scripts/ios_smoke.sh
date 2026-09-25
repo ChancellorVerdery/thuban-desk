@@ -16,6 +16,8 @@ OUT="${1:-$ROOT/.build/ios-smoke}"
 DERIVED="${DERIVED:-.build/DerivedData-iOS}"
 APP="$ROOT/$DERIVED/Build/Products/Debug-iphonesimulator/Thuban Desk.app"
 NOW_VALUE="${NOW:-2026-09-24T14:40:00-04:00}"
+# Status-bar clock: NOW_VALUE with ".000" fractional seconds, the only ISO shape simctl accepts.
+STATUS_CLOCK=$(print -r -- "$NOW_VALUE" | sed -E 's/(T[0-9]{2}:[0-9]{2}:[0-9]{2})([+Z-])/\1.000\2/')
 
 if [[ "${SKIP_BUILD:-0}" != "1" || ! -d "$APP" ]]; then
   DERIVED="$DERIVED" scripts/ios_build.sh || exit 1
@@ -27,8 +29,12 @@ run_device() {
   udid=$(ios_sim_udid "$name" "$type") || return 1
   echo "== $name ($udid)"
   ios_sim_boot "$udid"
+  # --time must be a full ISO string WITH fractional seconds (or a 24-hour "H:MM", which the iPad shows as AM);
+  # anything else (e.g. "2:40 PM", or ISO without ".000") is rejected and the real wall clock shows. The iPad's
+  # status-bar date stays the real one; simctl does not pin it.
   xcrun simctl status_bar "$udid" override --time "$clock" --dataNetwork wifi --wifiMode active --wifiBars 3 \
-    --cellularMode active --cellularBars 4 --batteryState charged --batteryLevel 100 2>/dev/null || true
+    --cellularMode active --cellularBars 4 --batteryState charged --batteryLevel 100 >/dev/null 2>&1 \
+    || echo "   WARNING: status-bar override failed; screenshots show the real clock"
   xcrun simctl terminate "$udid" "$BUNDLE_ID" 2>/dev/null || true
   xcrun simctl uninstall "$udid" "$BUNDLE_ID" 2>/dev/null || true
   xcrun simctl install "$udid" "$APP" || return 1
@@ -64,9 +70,9 @@ run_device() {
 }
 
 STATUS=0
-run_device "Thuban Desk Smoke" "" "2:40" || STATUS=$?
+run_device "Thuban Desk Smoke" "" "$STATUS_CLOCK" || STATUS=$?
 if [[ "${IPAD:-1}" == "1" ]]; then
-  run_device "Thuban Desk Smoke iPad" "com.apple.CoreSimulator.SimDeviceType.iPad-Pro-13-inch-M5-12GB" "2:40 PM" || STATUS=$?
+  run_device "Thuban Desk Smoke iPad" "com.apple.CoreSimulator.SimDeviceType.iPad-Pro-13-inch-M5-12GB" "$STATUS_CLOCK" || STATUS=$?
 fi
 echo "--- screenshots in $OUT:"
 ls -1 "$OUT"/*.png 2>/dev/null | sed "s|$OUT/||" || echo "(none)"
