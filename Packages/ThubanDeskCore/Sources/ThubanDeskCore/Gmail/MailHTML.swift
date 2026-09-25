@@ -40,7 +40,7 @@ public enum MailHTML {
                               "select", "base", "link", "meta", "noscript", "audio", "video", "source", "svg", "math", "portal"]
 
     static func clean(_ document: Document) {
-        for tag in removedTags { try? document.select(tag).remove() }
+        for tag in removedTags { _ = try? document.select(tag).remove() }
         guard let all = try? document.getAllElements() else { return }
         for element in all.array() {
             guard let attributes = element.getAttributes() else { continue }
@@ -48,12 +48,12 @@ public enum MailHTML {
                 let key = attribute.getKey().lowercased()
                 let value = attribute.getValue().trimmingCharacters(in: .whitespaces).lowercased()
                 if key.hasPrefix("on") || key == "srcdoc" || key == "formaction" {
-                    try? element.removeAttr(attribute.getKey())
+                    _ = try? element.removeAttr(attribute.getKey())
                 } else if ["href", "src", "action", "background", "lowsrc", "dynsrc", "xlink:href"].contains(key),
                           value.hasPrefix("javascript:") || value.hasPrefix("vbscript:") || (value.hasPrefix("data:") && !value.hasPrefix("data:image/")) {
-                    try? element.removeAttr(attribute.getKey())
+                    _ = try? element.removeAttr(attribute.getKey())
                 } else if key == "style", value.contains("expression(") || value.contains("javascript:") {
-                    try? element.removeAttr(attribute.getKey())
+                    _ = try? element.removeAttr(attribute.getKey())
                 }
             }
         }

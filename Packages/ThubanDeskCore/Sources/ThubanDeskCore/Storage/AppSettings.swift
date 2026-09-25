@@ -107,13 +107,15 @@ public struct AppSettings: Codable, Equatable, Sendable {
     public var lastMailFolder: String?
     /// Minutes between background syncs.
     public var refreshMinutes: Int = 5
+    /// Threads the user marked Done in "Needs a reply" (`ThreadKey.description`), local only.
+    public var dismissedNeedsReply: Set<String> = []
 
     public init() {}
 
     enum CodingKeys: String, CodingKey {
         case theme, textSize, reduceMotion, dyslexiaFont, writesEnabled, lastArea, calendarViewMode, hiddenCalendars, calendarTints,
              weekStartsOnMonday, showDeclinedEvents, defaultCalendar, defaultSendAccount, mailListWidth, pins, loadRemoteImages,
-             lastMailFolder, refreshMinutes
+             lastMailFolder, refreshMinutes, dismissedNeedsReply
     }
 
     public init(from decoder: Decoder) throws {
@@ -137,6 +139,7 @@ public struct AppSettings: Codable, Equatable, Sendable {
         loadRemoteImages = try c.decodeIfPresent(Bool.self, forKey: .loadRemoteImages) ?? d.loadRemoteImages
         lastMailFolder = try c.decodeIfPresent(String.self, forKey: .lastMailFolder)
         refreshMinutes = try c.decodeIfPresent(Int.self, forKey: .refreshMinutes) ?? d.refreshMinutes
+        dismissedNeedsReply = (try? c.decodeIfPresent(Set<String>.self, forKey: .dismissedNeedsReply)) ?? d.dismissedNeedsReply
     }
 
     public func isPinned(_ key: ThreadKey) -> Bool { pins[key.account]?.contains(key.threadID) ?? false }

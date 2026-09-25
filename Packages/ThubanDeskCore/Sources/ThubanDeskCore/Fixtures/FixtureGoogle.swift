@@ -410,6 +410,10 @@ public final class FixtureGoogle: @unchecked Sendable {
                 let name = String(term.dropFirst(3)).uppercased()
                 let map = ["INBOX": "INBOX", "SPAM": "SPAM", "TRASH": "TRASH", "DRAFTS": "DRAFT", "SENT": "SENT", "CHATS": "CHAT"]
                 hit = labels.contains(map[name] ?? name)
+            } else if term.hasPrefix("newer_than:") || term.hasPrefix("older_than:") {
+                let days = Double(term.split(separator: ":").last?.dropLast() ?? "") ?? 0
+                let cutoff = world.now.addingTimeInterval(-days * 86_400)
+                hit = term.hasPrefix("newer_than:") ? lastDate(thread) >= cutoff : lastDate(thread) < cutoff
             } else if term == "is:unread" {
                 hit = labels.contains(GmailSystemLabel.unread)
             } else if term == "is:starred" {

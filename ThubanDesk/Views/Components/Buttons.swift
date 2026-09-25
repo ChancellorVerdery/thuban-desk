@@ -1,11 +1,13 @@
 import SwiftUI
 import ThubanDeskCore
 
-/// Accent fill, `onAccent` text, 600 weight, radius 8, 36 pt tall.
+/// Accent fill, `onAccent` text, 600 weight, radius 8, 36 pt tall. `destructive` uses the loss fill (delete forever,
+/// empty trash, delete event).
 struct PrimaryButtonStyle: ButtonStyle {
     @Environment(\.thubanTheme) private var theme
     @Environment(\.isEnabled) private var isEnabled
     var height: CGFloat = ThubanMetrics.buttonHeight
+    var destructive: Bool = false
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
@@ -14,7 +16,7 @@ struct PrimaryButtonStyle: ButtonStyle {
             .padding(.horizontal, 16)
             .frame(height: height)
             .background(
-                configuration.isPressed ? theme.accentDeepColor : theme.accentColor,
+                destructive ? theme.negColor.opacity(configuration.isPressed ? 0.8 : 1) : (configuration.isPressed ? theme.accentDeepColor : theme.accentColor),
                 in: RoundedRectangle(cornerRadius: ThubanMetrics.controlRadius, style: .continuous)
             )
             .opacity(isEnabled ? 1 : 0.45)
