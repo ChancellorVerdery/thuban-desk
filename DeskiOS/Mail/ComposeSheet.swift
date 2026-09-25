@@ -18,51 +18,50 @@ struct ComposeSheet: View {
     var body: some View {
         VStack(spacing: 0) {
             header
-            ScrollView {
-                VStack(alignment: .leading, spacing: 0) {
-                    if let error = model.error {
-                        PhoneBanner(text: error) { model.error = nil }.padding(.horizontal, 16).padding(.vertical, 8)
-                    }
-                    recipientRow("To", list: $model.draft.to, text: $model.toText, focus: $toFocused, addButton: true)
-                    divider
-                    if model.showCcBcc {
-                        recipientRow("Cc", list: $model.draft.cc, text: $model.ccText, focus: nil, addButton: false)
-                        divider
-                        recipientRow("Bcc", list: $model.draft.bcc, text: $model.bccText, focus: nil, addButton: false)
-                        divider
-                    } else {
-                        Button { model.showCcBcc = true } label: {
-                            fieldLabel("Cc/Bcc").frame(maxWidth: .infinity, minHeight: 48, alignment: .leading).padding(.horizontal, 16).contentShape(Rectangle())
-                        }
-                        .buttonStyle(.plain)
-                        .accessibilityLabel("Add Cc or Bcc")
-                        divider
-                    }
-                    fromRow
-                    divider
-                    HStack(spacing: 8) {
-                        fieldLabel("Subject").frame(width: 72, alignment: .leading)
-                        TextField("", text: $model.draft.subject)
-                            .font(PhoneFont.body)
-                            .foregroundStyle(theme.inkColor)
-                            .accessibilityLabel("Subject")
-                            .onChange(of: model.draft.subject) { _, _ in model.scheduleSave() }
-                    }
-                    .padding(.horizontal, 16)
-                    .frame(minHeight: 48)
-                    divider
-                    RichTextView(controller: editor, initial: model.initialBody, placeholder: "Message") { text in
-                        model.bodyChanged(text)
-                    }
-                    .frame(minHeight: 220)
-                    .padding(.horizontal, 12)
-                    .padding(.top, 8)
-                    .accessibilityLabel("Message")
-                    if !model.draft.attachments.isEmpty { attachments }
-                    quote
+            // Fixed fields on top; the body fills everything down to the quoted-text chip and the formatting bar
+            // and scrolls inside itself with no indicator.
+            VStack(alignment: .leading, spacing: 0) {
+                if let error = model.error {
+                    PhoneBanner(text: error) { model.error = nil }.padding(.horizontal, 16).padding(.vertical, 8)
                 }
+                recipientRow("To", list: $model.draft.to, text: $model.toText, focus: $toFocused, addButton: true)
+                divider
+                if model.showCcBcc {
+                    recipientRow("Cc", list: $model.draft.cc, text: $model.ccText, focus: nil, addButton: false)
+                    divider
+                    recipientRow("Bcc", list: $model.draft.bcc, text: $model.bccText, focus: nil, addButton: false)
+                    divider
+                } else {
+                    Button { model.showCcBcc = true } label: {
+                        fieldLabel("Cc/Bcc").frame(maxWidth: .infinity, minHeight: 48, alignment: .leading).padding(.horizontal, 16).contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Add Cc or Bcc")
+                    divider
+                }
+                fromRow
+                divider
+                HStack(spacing: 8) {
+                    fieldLabel("Subject").frame(width: 72, alignment: .leading)
+                    TextField("", text: $model.draft.subject)
+                        .font(PhoneFont.body)
+                        .foregroundStyle(theme.inkColor)
+                        .accessibilityLabel("Subject")
+                        .onChange(of: model.draft.subject) { _, _ in model.scheduleSave() }
+                }
+                .padding(.horizontal, 16)
+                .frame(minHeight: 48)
+                divider
             }
-            .scrollDismissesKeyboard(.interactively)
+            RichTextView(controller: editor, initial: model.initialBody, placeholder: "Message") { text in
+                model.bodyChanged(text)
+            }
+            .frame(maxWidth: .infinity, minHeight: 96, maxHeight: .infinity)
+            .padding(.horizontal, 12)
+            .padding(.top, 8)
+            .accessibilityLabel("Message")
+            if !model.draft.attachments.isEmpty { attachments }
+            quote
             toolbar
         }
         .background(theme.panelColor.ignoresSafeArea())
@@ -226,15 +225,22 @@ struct ComposeSheet: View {
                 }
                 .buttonStyle(.plain)
                 if model.showQuote, let text = model.quoteText {
-                    Text(text)
-                        .font(PhoneFont.footnote)
-                        .foregroundStyle(theme.inkDimColor)
-                        .padding(.leading, 10)
-                        .overlay(alignment: .leading) { Rectangle().fill(theme.line2Color).frame(width: 2) }
+                    ScrollView {
+                        Text(text)
+                            .font(PhoneFont.footnote)
+                            .foregroundStyle(theme.inkDimColor)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.leading, 10)
+                            .overlay(alignment: .leading) { Rectangle().fill(theme.line2Color).frame(width: 2) }
+                    }
+                    .scrollIndicators(.hidden)
+                    .frame(maxHeight: 180)
                 }
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 16)
-            .padding(.bottom, 20)
+            .padding(.top, 4)
+            .padding(.bottom, 12)
         }
     }
 
@@ -434,7 +440,11 @@ struct RichTextView: UIViewRepresentable {
         view.backgroundColor = .clear
         view.font = UIFont.preferredFont(forTextStyle: .body)
         view.adjustsFontForContentSizeCategory = true
-        view.isScrollEnabled = false
+        view.isScrollEnabled = true
+        view.showsVerticalScrollIndicator = false
+        view.showsHorizontalScrollIndicator = false
+        view.alwaysBounceVertical = true
+        view.keyboardDismissMode = .interactive
         view.allowsEditingTextAttributes = true
         view.textContainerInset = UIEdgeInsets(top: 8, left: 0, bottom: 8, right: 0)
         view.delegate = context.coordinator
@@ -454,9 +464,8 @@ struct RichTextView: UIViewRepresentable {
     }
 
     func sizeThatFits(_ proposal: ProposedViewSize, uiView: UITextView, context: Context) -> CGSize? {
-        let width = proposal.width ?? 320
-        let size = uiView.sizeThatFits(CGSize(width: width, height: .greatestFiniteMagnitude))
-        return CGSize(width: width, height: max(220, size.height))
+        // Takes whatever height the sheet offers; the text view scrolls inside it.
+        CGSize(width: proposal.width ?? 320, height: proposal.height ?? 220)
     }
 
     final class Coordinator: NSObject, UITextViewDelegate {
@@ -465,7 +474,6 @@ struct RichTextView: UIViewRepresentable {
 
         func textViewDidChange(_ textView: UITextView) {
             onChange(textView.attributedText)
-            textView.invalidateIntrinsicContentSize()
         }
     }
 }
