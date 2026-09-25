@@ -1,4 +1,10 @@
+#if os(macOS)
 import AppKit
+typealias ArtPlatformColor = NSColor
+#else
+import UIKit
+typealias ArtPlatformColor = UIColor
+#endif
 import SwiftUI
 #if !APPICON_TOOL
 import ThubanDeskCore
@@ -74,10 +80,10 @@ struct AppArtView: View {
             context.withCGContext { cg in
                 AppArt.draw(in: cg, rect: CGRect(origin: .zero, size: canvasSize)) { role in
                     switch role {
-                    case .accentStroke, .accentFill: return NSColor(ink).cgColor
-                    case .signalStroke, .signalFill: return NSColor(signal).cgColor
-                    case .panelFill: return NSColor(panel).cgColor
-                    case .bgFill: return NSColor(background).cgColor
+                    case .accentStroke, .accentFill: return ArtPlatformColor(ink).cgColor
+                    case .signalStroke, .signalFill: return ArtPlatformColor(signal).cgColor
+                    case .panelFill: return ArtPlatformColor(panel).cgColor
+                    case .bgFill: return ArtPlatformColor(background).cgColor
                     }
                 }
             }

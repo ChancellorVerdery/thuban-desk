@@ -55,6 +55,9 @@ struct EventDraft: Identifiable {
     var descriptionEdited = false
     /// The user's own reply (invitations).
     var rsvp: ResponseStatus?
+    /// Reminder (the iOS editor's Alert row). Written only when `alertEdited`, so the Mac editor leaves reminders alone.
+    var alert: EventAlert = .calendarDefault
+    var alertEdited = false
 
     var isNew: Bool { original == nil }
 
@@ -108,6 +111,7 @@ struct EventDraft: Identifiable {
         attendees = event.attendees ?? []
         descriptionHTML = HTMLSanitizer.eventDescription(event.description)
         rsvp = event.selfResponse
+        alert = EventAlert(event.reminders)
 
         interval = 1
         weekdays = [startDay.weekday]
@@ -282,7 +286,7 @@ struct EventDraft: Identifiable {
                                   description: html.isEmpty ? nil : html,
                                   location: location.trimmingCharacters(in: .whitespaces).isEmpty ? nil : location.trimmingCharacters(in: .whitespaces),
                                   recurrence: builder.map { $0.recurrenceLines(isAllDay: isAllDay, zone: zone) },
-                                  attendees: attendees.isEmpty ? nil : attendees, reminders: EventReminders(useDefault: true))
+                                  attendees: attendees.isEmpty ? nil : attendees, reminders: alertEdited ? alert.reminders : EventReminders(useDefault: true))
         event.status = nil
         return event
     }
@@ -297,6 +301,7 @@ struct EventDraft: Identifiable {
         if newLocation != (event.location ?? "") { patch.location = newLocation }
         if descriptionEdited, descriptionHTML != HTMLSanitizer.eventDescription(event.description) { patch.description = descriptionHTML }
         if attendees != (event.attendees ?? []) { patch.attendees = attendees }
+        if alertEdited, alert != EventAlert(event.reminders) { patch.reminders = alert.reminders }
         let timesChanged: Bool
         if isAllDay != event.isAllDay {
             timesChanged = true

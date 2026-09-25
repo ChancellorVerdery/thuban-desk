@@ -44,6 +44,7 @@ extension Color {
     }
 }
 
+#if os(macOS)
 extension NSColor {
     convenience init(hex: String) {
         var text = hex.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -62,6 +63,7 @@ extension NSColor {
         )
     }
 }
+#endif
 
 // MARK: - Token colors
 

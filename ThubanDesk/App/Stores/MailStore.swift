@@ -58,8 +58,10 @@ final class MailStore {
 
     // MARK: UI state (Mail area)
 
+    #if os(macOS)
     /// The open Compose window (nil = closed). See `ComposeModel`.
     var compose: ComposeModel?
+    #endif
     /// Threads whose remote images the user allowed this session ("Load images").
     var imagesAllowed: Set<ThreadKey> = []
     /// Earlier messages the user expanded in the reader (message ids).

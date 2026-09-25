@@ -70,8 +70,8 @@ public enum CalendarText {
     static let monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
     static let shortMonths = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
 
-    static func monthName(_ month: Int) -> String { monthNames[max(0, min(11, month - 1))] }
-    static func shortMonth(_ month: Int) -> String { shortMonths[max(0, min(11, month - 1))] }
+    public static func monthName(_ month: Int) -> String { monthNames[max(0, min(11, month - 1))] }
+    public static func shortMonth(_ month: Int) -> String { shortMonths[max(0, min(11, month - 1))] }
 
     /// "September 2026".
     public static func monthTitle(year: Int, month: Int) -> String { "\(monthName(month)) \(year)" }

@@ -1,8 +1,10 @@
 // Renders Assets.xcassets/AppIcon.appiconset from AppArt (Brass, dark plate) — the Finder/Dock icon before launch.
 // Usage: scripts/make_app_icon.sh (compiles this with the app's AppArt.swift and AppArtSource.swift).
+// `--ios` (scripts/make_ios_icon.sh): one opaque full-bleed 1024 px icon for the iOS app (iOS masks the corners).
 import AppKit
 
 let out = URL(fileURLWithPath: CommandLine.arguments[1])
+let iOSMode = CommandLine.arguments.contains("--ios")
 func hex(_ s: String) -> CGColor {
     var v: UInt64 = 0; Scanner(string: String(s.dropFirst())).scanHexInt64(&v)
     return CGColor(red: CGFloat((v >> 16) & 0xFF) / 255, green: CGFloat((v >> 8) & 0xFF) / 255, blue: CGFloat(v & 0xFF) / 255, alpha: 1)
@@ -29,6 +31,36 @@ func render(_ px: Int) -> Data {
         }
     }
     return rep.representation(using: .png, properties: [:])!
+}
+
+/// iOS: the whole square is the plate (no rim, no transparency); the mark keeps the Mac icon's proportion to the plate.
+func renderIOS(_ px: Int) -> Data {
+    let cg = CGContext(data: nil, width: px, height: px, bitsPerComponent: 8, bytesPerRow: 0, space: CGColorSpaceCreateDeviceRGB(),
+                       bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue)!
+    let size = CGFloat(px)
+    cg.translateBy(x: 0, y: size); cg.scaleBy(x: 1, y: -1)
+    cg.setFillColor(bg); cg.fill(CGRect(x: 0, y: 0, width: size, height: size))
+    let mark = size * 0.6
+    AppArt.draw(in: cg, rect: CGRect(x: (size - mark) / 2, y: (size - mark) / 2, width: mark, height: mark)) { role in
+        switch role {
+        case .accentStroke, .accentFill: return accent
+        case .signalStroke, .signalFill: return signal
+        case .panelFill: return panel
+        case .bgFill: return bg
+        }
+    }
+    return NSBitmapImageRep(cgImage: cg.makeImage()!).representation(using: .png, properties: [:])!
+}
+
+if iOSMode {
+    try! renderIOS(1024).write(to: out.appendingPathComponent("AppIcon-1024.png"))
+    let contents: [String: Any] = [
+        "images": [["idiom": "universal", "platform": "ios", "size": "1024x1024", "filename": "AppIcon-1024.png"]],
+        "info": ["author": "xcode", "version": 1],
+    ]
+    try! JSONSerialization.data(withJSONObject: contents, options: [.prettyPrinted, .sortedKeys]).write(to: out.appendingPathComponent("Contents.json"))
+    print("wrote the iOS icon to \(out.path)")
+    exit(0)
 }
 
 var images: [[String: String]] = []

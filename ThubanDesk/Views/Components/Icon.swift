@@ -89,6 +89,16 @@ enum IconName: String, CaseIterable {
     case sync
     /// Eye (Mail reader "Load images")
     case eye
+    /// Compose (pen on square) — iOS nav bars
+    case compose
+    /// New event (calendar with plus) — iOS Today
+    case calendarAdd
+    /// Calendars list (dots + lines) — iOS Calendar
+    case listDots
+    /// Video call (Add Google Meet) — iOS editor
+    case video
+    /// More actions (dots in a circle) — iOS thread
+    case moreCircle
 
     /// The SVG elements (paths, circles, rects) inside the 24×24 viewBox.
     var svg: String {
@@ -136,6 +146,11 @@ enum IconName: String, CaseIterable {
         case .location: return #"<path d="M12 21s-6.5-6-6.5-11a6.5 6.5 0 0 1 13 0c0 5-6.5 11-6.5 11z"/><circle cx="12" cy="10" r="2.3"/>"#
         case .sync: return #"<path d="M19.5 11a7.5 7.5 0 0 0-13.6-3.5"/><path d="M4.5 13a7.5 7.5 0 0 0 13.6 3.5"/><path d="M5.5 3.5v4h4"/><path d="M18.5 20.5v-4h-4"/>"#
         case .eye: return #"<path d="M2.5 12s3.5-6.5 9.5-6.5 9.5 6.5 9.5 6.5-3.5 6.5-9.5 6.5S2.5 12 2.5 12z"/><circle cx="12" cy="12" r="2.8"/>"#
+        case .compose: return #"<path d="M12 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-6"/><path d="M17.5 3.5l3 3L12 15l-4 1 1-4z"/>"#
+        case .calendarAdd: return #"<rect x="3.5" y="5" width="17" height="15.5" rx="2"/><path d="M3.5 9.5h17"/><path d="M8 3v4"/><path d="M16 3v4"/><path d="M12 12.5v5"/><path d="M9.5 15h5"/>"#
+        case .listDots: return #"<path d="M9 6.5h11"/><path d="M9 12h11"/><path d="M9 17.5h11"/><path d="M4.75 6.5h.01"/><path d="M4.75 12h.01"/><path d="M4.75 17.5h.01"/>"#
+        case .video: return #"<rect x="3" y="6.5" width="12.5" height="11" rx="2"/><path d="M15.5 10.5l5-3v9l-5-3"/>"#
+        case .moreCircle: return #"<circle cx="12" cy="12" r="8.5"/><path d="M8 12h.01"/><path d="M12 12h.01"/><path d="M16 12h.01"/>"#
         }
     }
 
