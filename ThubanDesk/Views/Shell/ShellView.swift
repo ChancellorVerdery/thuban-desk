@@ -46,15 +46,11 @@ struct ShellView: View {
     }
 }
 
-/// Shown in Calendar / Mail / Today until an account is linked.
+/// Shown in Calendar / Mail / Today until an account is linked: the first-run welcome and setup guide
+/// (`Views/Settings/SetupGuide.swift`, Today + Settings engineer).
 struct ConnectPrompt: View {
-    @Environment(AppModel.self) private var app
-
     var body: some View {
-        EmptyState(icon: .account, title: "Link a Google account",
-                   message: "Thuban Desk shows your Google Calendar and Gmail. Add your OAuth client and sign in from Settings → Accounts.") {
-            Button("Open Accounts") { app.openSettings(.accounts) }.buttonStyle(.thubanPrimary)
-        }
+        OnboardingView()
     }
 }
 

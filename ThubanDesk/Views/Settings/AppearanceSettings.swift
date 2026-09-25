@@ -166,60 +166,73 @@ struct SplitGroundSwatch: View {
 
 // MARK: - Preview card
 
-/// A mini class tab bar, primary/secondary buttons, status chips, and due / overdue lines.
+/// A miniature Desk: title bar with the area pills, three event blocks in the calendar roles, a mail row with the
+/// unread dot, and the Today chips and buttons — everything drawn from the resolved theme.
 struct ThemePreviewCard: View {
     @Environment(\.thubanTheme) private var theme
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack(spacing: 4) {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: 8) {
                 AppArtView(size: 16, theme: theme)
-                    .padding(.trailing, 6)
-                previewTab("Multivariable Calculus", active: true)
-                previewTab("Organic Chemistry II", active: false)
-                previewTab("US History since 1877", active: false)
+                Text("Thuban Desk").font(ThubanFont.display(13)).foregroundStyle(theme.inkColor)
+                    .padding(.trailing, 10)
+                pill(.calendar, "Calendar", active: false)
+                pill(.mail, "Mail", active: false, badge: "4")
+                pill(.today, "Today", active: true)
                 Spacer(minLength: 0)
-                Chip("Connected", kind: .pos, dot: true)
+                HStack(spacing: 6) {
+                    Circle().fill(theme.signalColor).frame(width: 6, height: 6)
+                    Text("2 accounts synced")
+                }
+                .font(.system(size: 11.5, weight: .semibold))
+                .foregroundStyle(theme.inkDimColor)
+                .padding(.horizontal, 8)
+                .frame(height: 22)
+                .background(theme.panel2Color, in: RoundedRectangle(cornerRadius: 6, style: .continuous))
             }
             .padding(.horizontal, 12)
-            .frame(height: 44)
-            .frame(maxWidth: .infinity)
+            .frame(height: 40)
             .background(theme.panelColor)
             .thubanHairline(.bottom, color: theme.lineColor)
 
-            VStack(alignment: .leading, spacing: 12) {
-                HStack(spacing: 10) {
-                    Button("Submit") {}
-                        .buttonStyle(.thubanPrimary)
-                    Button("Open in browser") {}
-                        .buttonStyle(.thubanSecondary)
-                    Spacer(minLength: 0)
-                    Chip("Graded", kind: .signal)
-                    Chip("What-if", kind: .warn)
+            HStack(alignment: .top, spacing: 14) {
+                VStack(spacing: 6) {
+                    event("STAT 2122 · Statistics", "2:30 – 3:45 PM", .accent)
+                    event("Gym · UREC", "7:00 – 8:00 AM", .pos)
+                    event("Study group · MATH 2210", "7:00 – 8:30 PM", .signal)
+                    event("Dinner with Mom", "5:00 – 7:00 PM", .neg)
                 }
-                .allowsHitTesting(false)
-                HStack(spacing: 18) {
-                    HStack(spacing: 6) {
-                        Circle().fill(theme.posColor).frame(width: 8, height: 8)
-                        Text("3 due this week")
-                            .font(ThubanFont.body(14, weight: .semibold))
-                            .foregroundStyle(theme.posTextColor)
+                .frame(maxWidth: .infinity)
+
+                VStack(alignment: .leading, spacing: 10) {
+                    HStack(spacing: 8) {
+                        Circle().fill(theme.accentColor).frame(width: 7, height: 7)
+                        Text("Maya Chen").font(.system(size: 12.5, weight: .semibold)).foregroundStyle(theme.inkColor)
+                        Spacer(minLength: 0)
+                        Text("48 min ago").font(.system(size: 11.5)).foregroundStyle(theme.inkDimColor)
                     }
+                    Text("Still on for 7 in Atkins 244?")
+                        .font(.system(size: 12.5))
+                        .foregroundStyle(theme.inkColor)
+                        .padding(.leading, 8)
+                        .overlay(alignment: .leading) { Rectangle().fill(theme.accentColor).frame(width: 2) }
                     HStack(spacing: 6) {
-                        Circle().fill(theme.negColor).frame(width: 8, height: 8)
-                        Text("1 overdue")
-                            .font(ThubanFont.body(14, weight: .semibold))
-                            .foregroundStyle(theme.negTextColor)
+                        Chip("Now · 65 min left", kind: .signal)
+                        Chip("Not answered", kind: .neg)
                     }
-                    Spacer(minLength: 0)
-                    Text("Problem Set 4 · due Fri 11:59 PM")
-                        .font(ThubanFont.small)
-                        .foregroundStyle(theme.inkDimColor)
+                    HStack(spacing: 8) {
+                        Button("Reply") {}.buttonStyle(PrimaryButtonStyle(height: 28))
+                        Button("Open thread") {}.buttonStyle(SecondaryButtonStyle(height: 28))
+                    }
+                    .allowsHitTesting(false)
                 }
-                ProgressBar(value: 0.5)
+                .padding(12)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(theme.panelColor, in: RoundedRectangle(cornerRadius: ThubanMetrics.controlRadius, style: .continuous))
+                .overlay(RoundedRectangle(cornerRadius: ThubanMetrics.controlRadius, style: .continuous).strokeBorder(theme.lineColor, lineWidth: ThubanMetrics.hairline))
             }
-            .padding(.horizontal, 16)
-            .padding(.bottom, 16)
+            .padding(14)
         }
         .background(theme.bgColor, in: RoundedRectangle(cornerRadius: ThubanMetrics.cardRadius, style: .continuous))
         .clipShape(RoundedRectangle(cornerRadius: ThubanMetrics.cardRadius, style: .continuous))
@@ -231,21 +244,36 @@ struct ThemePreviewCard: View {
         .accessibilityLabel("Theme preview")
     }
 
-    private func previewTab(_ name: String, active: Bool) -> some View {
-        HStack(spacing: 6) {
-            Image(systemName: "book.closed").font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(active ? theme.brassInkColor : theme.inkDimColor)
+    private func pill(_ icon: IconName, _ name: String, active: Bool, badge: String? = nil) -> some View {
+        HStack(spacing: 5) {
+            Icon(icon, size: 12)
             Text(name)
-                .lineLimit(1)
+            if let badge {
+                Text(badge).font(ThubanFont.mono(10, weight: .semibold)).foregroundStyle(theme.brassInkColor)
+                    .padding(.horizontal, 4)
+                    .background(theme.accentTintColor, in: RoundedRectangle(cornerRadius: 4, style: .continuous))
+            }
         }
-        .font(.system(size: 12, weight: .semibold))
+        .font(.system(size: 11.5, weight: .semibold))
         .foregroundStyle(active ? theme.inkColor : theme.inkDimColor)
-        .padding(.horizontal, 10)
-        .frame(height: 28)
-        .background(active ? theme.panel2Color : .clear, in: RoundedRectangle(cornerRadius: ThubanMetrics.chipRadius, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: ThubanMetrics.chipRadius, style: .continuous)
-                .strokeBorder(active ? theme.line2Color : .clear, lineWidth: ThubanMetrics.hairline)
-        )
+        .padding(.horizontal, 8)
+        .frame(height: 24)
+        .background(active ? theme.panel2Color : .clear, in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 6, style: .continuous).strokeBorder(active ? theme.line2Color : .clear, lineWidth: ThubanMetrics.hairline))
+    }
+
+    private func event(_ title: String, _ time: String, _ tint: CalendarTint) -> some View {
+        HStack(spacing: 8) {
+            RoundedRectangle(cornerRadius: 1.5, style: .continuous).fill(theme.color(for: tint)).frame(width: 3)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(title).font(.system(size: 12, weight: .semibold)).foregroundStyle(theme.inkColor).lineLimit(1)
+                Text(time).font(.system(size: 11)).foregroundStyle(theme.textColor(for: tint))
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(.vertical, 5)
+        .padding(.horizontal, 6)
+        .background(theme.softColor(for: tint), in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+        .fixedSize(horizontal: false, vertical: true)
     }
 }
