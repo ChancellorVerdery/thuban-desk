@@ -56,3 +56,79 @@ targets:
         ENABLE_HARDENED_RUNTIME: false
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         SWIFT_EMIT_LOC_STRINGS: false
+  # iOS / iPadOS app (design: ~/.claude/jobs/bd9882f5/tmp/design/desk-ios). Shares the core package and the
+  # platform-neutral app code (AppModel, stores, calendar UI state, theme tokens, icons, app art) with the Mac app.
+  DeskiOS:
+    type: application
+    platform: iOS
+    deploymentTarget: "18.0"
+    configFiles:
+      Debug: DeskiOS/Config/DeskiOS.xcconfig
+      Release: DeskiOS/Config/DeskiOS.xcconfig
+    sources:
+      - path: DeskiOS
+        excludes:
+          - "Config/**"
+          - "Resources/Info.plist"
+      - path: ThubanDesk/App/AppModel.swift
+      - path: ThubanDesk/App/Routes.swift
+      - path: ThubanDesk/App/ConfirmWrite.swift
+      - path: ThubanDesk/App/Resource.swift
+      - path: ThubanDesk/App/DeskLinks.swift
+      - path: ThubanDesk/App/Stores/CalendarStore.swift
+      - path: ThubanDesk/App/Stores/MailStore.swift
+      - path: ThubanDesk/App/Stores/MailStore+UI.swift
+      - path: ThubanDesk/Views/Calendar/CalendarUIState.swift
+      - path: ThubanDesk/Views/Calendar/EventDraft.swift
+      - path: ThubanDesk/Views/Today/TodayModel.swift
+      - path: ThubanDesk/Views/Theme/ThemeEnvironment.swift
+      - path: ThubanDesk/Views/Components/Common.swift
+      - path: ThubanDesk/Views/Components/Icon.swift
+      - path: ThubanDesk/Views/Components/AppArt.swift
+      - path: ThubanDesk/Views/Components/AppArtSource.swift
+    dependencies:
+      - package: ThubanDeskCore
+        product: ThubanDeskCore
+    info:
+      path: DeskiOS/Resources/Info.plist
+      properties:
+        CFBundleName: Thuban Desk
+        CFBundleDisplayName: Thuban Desk
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        CFBundleIdentifier: $(PRODUCT_BUNDLE_IDENTIFIER)
+        LSRequiresIPhoneOS: true
+        ITSAppUsesNonExemptEncryption: false
+        UILaunchScreen:
+          UIColorName: LaunchBackground
+        UIApplicationSceneManifest:
+          UIApplicationSupportsMultipleScenes: false
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+        UISupportedInterfaceOrientations~ipad:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationPortraitUpsideDown
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        # Google iOS OAuth client (DeskiOS/Config/Secrets.xcconfig, gitignored): the redirect comes back on the
+        # reversed client ID scheme, so the scheme must be registered here.
+        GoogleIOSClientID: $(GOOGLE_IOS_CLIENT_ID)
+        CFBundleURLTypes:
+          - CFBundleURLName: google-oauth
+            CFBundleURLSchemes:
+              - $(GOOGLE_IOS_URL_SCHEME)
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: org.thuban.desk.ios
+        PRODUCT_NAME: Thuban Desk
+        TARGETED_DEVICE_FAMILY: "1,2"
+        IPHONEOS_DEPLOYMENT_TARGET: "18.0"
+        SUPPORTS_MACCATALYST: false
+        SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD: false
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        SWIFT_EMIT_LOC_STRINGS: false
+        CODE_SIGN_STYLE: Automatic
+        # Simulator builds are unsigned (no signing identity on this Mac yet); scripts/ios_install.sh signs a
+        # device build only when DEVELOPMENT_TEAM is set.
+        CODE_SIGNING_ALLOWED: "NO"
+        DEVELOPMENT_TEAM: ""

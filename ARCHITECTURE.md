@@ -163,3 +163,59 @@ Brass default, eight Atlas schemes + custom; Auto / Light / Dark.
 - `scripts/install.sh` — Release build to /Applications (lead only, after merges).
 - `scripts/make_app_icon.sh` — static AppIcon from `AppArtSource.swift` (desk.svg verbatim); the dock icon is
   re-rendered live in the current theme by `AppIconRenderer`.
+
+## iOS / iPadOS app (target `DeskiOS`)
+
+Design boards: `~/.claude/jobs/bd9882f5/tmp/design/desk-ios/project/*.dc.html` — Today, Calendar Day / Month, Mail
+inbox (mid-swipe), Mailboxes, Event editor, Change a repeating event, Thread, Reply sheet, Mail · Dark Brass (select
+mode), iPad split view, Settings. Search has no board (house list style). Same safety rules as above; in addition
+there are **no live runs at all** from development: the smoke uses only the in-process fake Google.
+
+- **Target**: `DeskiOS` in the same `project.yml` — PRODUCT_NAME "Thuban Desk", bundle id `org.thuban.desk.ios`,
+  iOS 18, iPhone + iPad, simulator builds unsigned (`CODE_SIGNING_ALLOWED=NO`). Sources: `DeskiOS/**` plus the
+  shared app files listed in `project.yml` — `AppModel`, `Routes`, `ConfirmWrite`, `Resource`, `DeskLinks`, the two
+  stores, `CalendarUIState` + `EventDraft` (editor, scope prompt, delete, RSVP flows), `TodayModel`,
+  `ThemeEnvironment`, `Common`, `Icon`, `AppArt` + `AppArtSource`. Platform bits in shared files are fenced with
+  `#if os(macOS)` (AppKit appearance + dock icon, loopback sign-in, `MailStore.compose`). Mac-only helpers with an
+  iOS twin of the same name: `SmokeHarness`, `openThread` / `requestReply` / `requestCompose` / `requestNewEvent`
+  (`DeskiOS/App/AppModel+Phone.swift`).
+- **Core**: platforms `.macOS(.v15), .iOS(.v18)`. `LoopbackReceiver` and `GoogleSignIn.run` are macOS-only.
+  iOS-relevant additions (all unit-tested): `GoogleMobileSignIn` / `GoogleMobileRedirect` (reversed client ID
+  redirect `com.googleusercontent.apps.<id>:/oauth2redirect`, PKCE, no client secret, callback checks),
+  `EventAlert` (the editor's Alert row ⇄ Google reminders), `RichRuns` (composer paragraphs/runs → HTML + text).
+- **Sign-in on iOS**: `ASWebAuthenticationSession` (ephemeral) → `GoogleMobileSignIn`. The Google **iOS** OAuth
+  client ID comes from `GOOGLE_IOS_CLIENT_ID` in `DeskiOS/Config/Secrets.xcconfig` (gitignored; see
+  `DeskiOS/Config/DeskiOS.xcconfig` and `Secrets.example.xcconfig`, value = the part before
+  `.apps.googleusercontent.com`). The build writes it to Info.plist `GoogleIOSClientID` and registers the reversed
+  scheme in `CFBundleURLTypes` (iOS cannot register schemes at run time). Settings → Google sign-in accepts a pasted
+  ID too and warns when this build does not register its scheme. Without an ID the app runs and says how to add one.
+  Fixture mode disables sign-in.
+- **Storage**: no Keychain. `credentials.json` in Application Support inside the app container, written with
+  `NSFileProtectionComplete`; the whole app home folder carries the same protection class.
+- **UI structure** (`DeskiOS/`): `App/` (entry + `RootView`, `PhoneRouter` — tab, per-tab paths, sheets, select
+  mode, iPad section — `MobileAuth`, `LocalNotifications`, `SmokeHarness`), `Components/` (`PhoneStyle`: fonts as
+  Dynamic Type styles, `InsetCard`, `PhoneRow`, `PhoneSegmented`, `PhoneSearchField`, nav buttons, chips, avatars;
+  `PhoneScreen`: 44 pt nav row + 34 pt serif large title that collapses inline; `ConfirmSheet` + `confirmHost`),
+  `Today/`, `Calendar/` (tab, week strip, time grid with now line, month + agenda, editor sheet, scope action sheet,
+  calendars sheet), `Mail/` (Mailboxes, inbox with swipe + select mode, thread with `MailBodyView` WKWebView fed by
+  core `MailHTML`, compose sheet + `PhoneComposeModel` + rich text view, label picker), `Search/`, `Settings/`,
+  `IPad/` (sidebar + list + thread; the sidebar slides in below 1000 pt width). Custom tab bar (panel, hairline,
+  brass selection) instead of the system one; system nav bars are hidden (swipe-back re-enabled).
+- **Send**: the compose sheet's Send opens `ConfirmSheet` (only its button calls `ConfirmRequest.run()`); fixture
+  mode refuses sends in the `WriteGate` and in `FixtureGoogle`; the smoke fails if a send endpoint was hit.
+- **Notifications**: local only (event reminders 10 min before, new invitations, new needs-a-reply), never in
+  fixture mode. No widgets, Live Activities or push.
+- **Icon**: `scripts/make_ios_icon.sh` → one 1024 px opaque icon (Brass on the dark plate) from the same art
+  (`scripts/make_app_icon.swift --ios`).
+
+### iOS scripts
+
+- `scripts/ios_build.sh` — simulator build into `.build/DerivedData-iOS` (`CONFIG=Release` for Release).
+- `scripts/ios_smoke.sh [out]` — boots its own simulators "Thuban Desk Smoke" (iPhone 17 / iOS 26.5) and "Thuban
+  Desk Smoke iPad" (iPad Pro 13-inch; a headless simulator cannot rotate, and its portrait width already gets the
+  three-column layout), launches with `SIMCTL_CHILD_THUBAN_DESK_FIXTURES=1`, `…_SMOKE=1`, `…_NOW=2026-09-24T14:40…`,
+  and screenshots every scene with `xcrun simctl io <udid> screenshot` into `.build/ios-smoke` (handshake through
+  `Documents/smoke/state.txt` / `ack.txt` in the app container). `SCENES=mail,pad` limits, `IPAD=0` skips iPad,
+  `KEEP_BOOTED=1` leaves the simulators running. Scenes live in `DeskiOS/App/SmokeHarness.swift`.
+- `scripts/ios_install.sh` — Release simulator build installed into "Thuban iPhone" (created when missing); plus a
+  signed device build + `devicectl` install only when a paired iPhone exists and `DEVELOPMENT_TEAM` is set.

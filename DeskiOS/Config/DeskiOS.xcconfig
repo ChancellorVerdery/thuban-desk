@@ -1,0 +1,16 @@
+// Thuban Desk iOS build settings.
+//
+// Google sign-in on iOS uses an OAuth client of type "iOS" (Google Cloud Console → Credentials → Create OAuth client
+// ID → iOS, bundle ID org.thuban.desk.ios). Put ITS ID in DeskiOS/Config/Secrets.xcconfig (gitignored), as the part
+// before ".apps.googleusercontent.com":
+//
+//     GOOGLE_IOS_CLIENT_ID = 1234567890-abcdefghijklmnop
+//
+// The build then registers the reversed client ID URL scheme (com.googleusercontent.apps.<id>) in Info.plist
+// CFBundleURLTypes, which is where Google sends the sign-in back to. iOS cannot register URL schemes at run time, so
+// a client ID typed into Settings only works when it matches the one this build was made with. Without a client ID
+// the app runs and Settings explains how to add one. No client secret is used (PKCE).
+
+GOOGLE_IOS_CLIENT_ID =
+#include? "Secrets.xcconfig"
+GOOGLE_IOS_URL_SCHEME = com.googleusercontent.apps.$(GOOGLE_IOS_CLIENT_ID)
