@@ -4,7 +4,7 @@ import ThubanDeskCore
 
 /// Commands from the description toolbar to the text view (bold, italic, underline, lists, link).
 @MainActor
-final class RichTextController {
+final class EventRichTextController {
     weak var textView: NSTextView?
 
     func toggleBold() { toggleTrait(.boldFontMask) }
@@ -31,7 +31,7 @@ final class RichTextController {
         let range = textView.selectedRange()
         guard range.length > 0 else {
             var typing = textView.typingAttributes
-            let font = (typing[.font] as? NSFont) ?? RichTextEditor.baseFont
+            let font = (typing[.font] as? NSFont) ?? EventDescriptionEditor.baseFont
             let has = manager.traits(of: font).contains(trait)
             typing[.font] = has ? manager.convert(font, toNotHaveTrait: trait) : manager.convert(font, toHaveTrait: trait)
             textView.typingAttributes = typing
@@ -43,7 +43,7 @@ final class RichTextController {
         }
         edit(range) {
             storage.enumerateAttribute(.font, in: range) { value, sub, _ in
-                let font = (value as? NSFont) ?? RichTextEditor.baseFont
+                let font = (value as? NSFont) ?? EventDescriptionEditor.baseFont
                 storage.addAttribute(.font, value: allOn ? manager.convert(font, toNotHaveTrait: trait) : manager.convert(font, toHaveTrait: trait), range: sub)
             }
         }
@@ -117,11 +117,11 @@ final class RichTextController {
 
 /// The description editor: native rich text (bold, italic, underline, bullet / numbered lines, links), saved as
 /// sanitized HTML (`DescriptionHTML`) and loaded through `HTMLSanitizer` (scripts and embeds never survive).
-struct RichTextEditor: NSViewRepresentable {
+struct EventDescriptionEditor: NSViewRepresentable {
     static let baseFont = NSFont.systemFont(ofSize: 14)
 
     var html: String
-    var controller: RichTextController
+    var controller: EventRichTextController
     var theme: ResolvedTheme
     var isEditable: Bool
     var onChange: (String) -> Void
@@ -134,7 +134,7 @@ struct RichTextEditor: NSViewRepresentable {
         scroll.hasVerticalScroller = true
         scroll.autohidesScrollers = true
         scroll.borderType = .noBorder
-        let view = ShortcutTextView(frame: NSRect(x: 0, y: 0, width: 400, height: 200))
+        let view = EventShortcutTextView(frame: NSRect(x: 0, y: 0, width: 400, height: 200))
         view.controller = controller
         view.minSize = NSSize(width: 0, height: 0)
         view.maxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
@@ -245,7 +245,7 @@ struct RichTextEditor: NSViewRepresentable {
 
         func textDidChange(_ notification: Notification) {
             guard let textView = notification.object as? NSTextView else { return }
-            onChange(RichTextEditor.html(from: textView.attributedString()))
+            onChange(EventDescriptionEditor.html(from: textView.attributedString()))
         }
 
         func textView(_ textView: NSTextView, clickedOnLink link: Any, at charIndex: Int) -> Bool {
@@ -258,8 +258,8 @@ struct RichTextEditor: NSViewRepresentable {
 }
 
 /// ⌘B / ⌘I / ⌘U inside the description.
-private final class ShortcutTextView: NSTextView {
-    weak var controller: RichTextController?
+private final class EventShortcutTextView: NSTextView {
+    weak var controller: EventRichTextController?
 
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
         guard window?.firstResponder === self, event.modifierFlags.intersection(.deviceIndependentFlagsMask) == .command else {

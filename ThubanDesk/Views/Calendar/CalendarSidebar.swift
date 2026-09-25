@@ -25,7 +25,7 @@ struct CalendarSidebar: View {
                 .padding(.bottom, 12)
             }
             .scrollIndicators(.never)
-            InvitationsCard()
+            SidebarInvitationsCard()
                 .padding(.horizontal, 16)
                 .padding(.bottom, 18)
         }
@@ -177,7 +177,7 @@ struct CalendarCheckbox: View {
 // MARK: - Invitations
 
 /// "INVITATIONS 1 · Interview · Crescent Labs · Fri, Sep 25 · 3:00 – 3:45 PM · [Respond]".
-private struct InvitationsCard: View {
+private struct SidebarInvitationsCard: View {
     @Environment(AppModel.self) private var app
     @Environment(\.thubanTheme) private var theme
 

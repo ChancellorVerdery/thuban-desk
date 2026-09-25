@@ -28,7 +28,7 @@ struct EventEditorSheet: View {
     @Environment(AppModel.self) private var app
     @Environment(\.thubanTheme) private var theme
     @Binding var draft: EventDraft
-    @State private var richText = RichTextController()
+    @State private var richText = EventRichTextController()
     @State private var linkOpen = false
     @State private var calendarMenuOpen = false
     @State private var linkText = ""
@@ -374,7 +374,7 @@ struct EventEditorSheet: View {
             Text("DESCRIPTION").font(ThubanFont.micro).kerning(0.96).foregroundStyle(theme.inkDimColor).padding(.top, 8)
             VStack(spacing: 0) {
                 formattingBar
-                RichTextEditor(html: draft.descriptionHTML, controller: richText, theme: theme, isEditable: draft.canEdit) { html in
+                EventDescriptionEditor(html: draft.descriptionHTML, controller: richText, theme: theme, isEditable: draft.canEdit) { html in
                     draft.descriptionHTML = html
                     draft.descriptionEdited = true
                 }
