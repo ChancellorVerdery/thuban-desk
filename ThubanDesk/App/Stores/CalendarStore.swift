@@ -33,6 +33,9 @@ final class CalendarStore {
     private(set) var months: [CalendarKey: [YearMonth: [CalendarEvent]]] = [:]
     @ObservationIgnored private var monthLoadedAt: [CalendarKey: [YearMonth: Date]] = [:]
     @ObservationIgnored private var inflight: [String: Task<Void, Never>] = [:]
+    /// Latest load request per month cache key; a fetch whose generation is older is dropped (a forced reload
+    /// after a write always wins over a fetch that started before it).
+    @ObservationIgnored private var monthGeneration: [String: Int] = [:]
     @ObservationIgnored private var listFetched: Set<String> = []
     private(set) var isLoading = false
     /// Last failure per account (offline, 403 …).
@@ -171,30 +174,40 @@ final class CalendarStore {
 
     private func loadMonth(_ month: YearMonth, for ref: CalendarRef, force: Bool) async {
         let cacheKey = "events|\(ref.key)|\(month)"
-        if let running = inflight[cacheKey] { await running.value; return }
-        if months[ref.key]?[month] == nil, let entry = await app.cache.entry(for: cacheKey),
-           let cached = try? GoogleJSON.decoder.decode([CalendarEvent].self, from: entry.data) {
-            months[ref.key, default: [:]][month] = cached
-            revision += 1
-        }
-        if !force, let loaded = monthLoadedAt[ref.key]?[month], Date().timeIntervalSince(loaded) < Self.monthTTL { return }
-        guard let client = app.client(for: ref.account) else { return }
+        // A forced load (after a write) never reuses a running fetch: that one may have started before the write.
+        if !force, let running = inflight[cacheKey] { await running.value; return }
+        if !force, months[ref.key]?[month] != nil, let loaded = monthLoadedAt[ref.key]?[month],
+           Date().timeIntervalSince(loaded) < Self.monthTTL { return }
+        // Registered synchronously (before any await), so concurrent callers see it and older results are dropped.
+        let generation = (monthGeneration[cacheKey] ?? 0) + 1
+        monthGeneration[cacheKey] = generation
+        let client = app.client(for: ref.account)
         let interval = month.interval(in: app.zone)
         let task = Task { @MainActor in
+            let isCurrent = { self.monthGeneration[cacheKey] == generation }
+            if months[ref.key]?[month] == nil, let entry = await app.cache.entry(for: cacheKey),
+               let cached = try? GoogleJSON.decoder.decode([CalendarEvent].self, from: entry.data),
+               isCurrent(), months[ref.key]?[month] == nil {
+                months[ref.key, default: [:]][month] = cached
+                revision += 1
+            }
+            guard let client else { return }
             do {
                 let events = try await client.events(calendarID: ref.key.calendarID, from: interval.start, to: interval.end)
+                guard isCurrent() else { return }
                 months[ref.key, default: [:]][month] = events
                 monthLoadedAt[ref.key, default: [:]][month] = Date()
                 accountErrors[ref.account] = nil
                 revision += 1
                 if let data = try? GoogleJSON.cacheEncoder.encode(events) { await app.cache.store(data, for: cacheKey) }
             } catch {
+                guard isCurrent() else { return }
                 accountErrors[ref.account] = error.localizedDescription
             }
         }
         inflight[cacheKey] = task
         await task.value
-        inflight[cacheKey] = nil
+        if monthGeneration[cacheKey] == generation { inflight[cacheKey] = nil }
     }
 
     /// Reloads calendar lists and the visible range (or this month) from the network.
@@ -285,7 +298,9 @@ final class CalendarStore {
     func rsvp(_ status: ResponseStatus, to event: CalendarEvent, in key: CalendarKey) async throws {
         guard let client = app.client(for: key.account) else { throw ThubanError.notSignedIn(key.account) }
         _ = try await client.rsvp(status, to: event, calendarID: key.calendarID, selfEmail: key.account)
-        await reload(key, around: [event.startDate(in: app.zone)])
+        // A repeating invitation is answered for the whole series: every loaded month of this calendar changes.
+        let loaded = event.isRecurringInstance ? (months[key].map { Array($0.keys) } ?? []).map { $0.interval(in: app.zone).start } : []
+        await reload(key, around: [event.startDate(in: app.zone)] + loaded)
     }
 
     /// Finds (or creates) a dedicated calendar by name in an account; returns its key.

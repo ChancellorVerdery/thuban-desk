@@ -26,6 +26,15 @@ public struct GoogleRequest: Sendable, Equatable {
         self.kind = kind
     }
 
+    /// Whether repeating the request after an ambiguous failure (5xx: it may have gone through) cannot create a
+    /// second copy of something. GET / PUT / PATCH / DELETE are; POST creates (events.insert, labels / filters /
+    /// drafts.create) except Gmail's label-changing POSTs (modify, trash, untrash, batchModify, batchDelete).
+    public var isIdempotent: Bool {
+        guard kind != .send else { return false }
+        guard method.uppercased() == "POST" else { return true }
+        return ["modify", "trash", "untrash", "batchModify", "batchDelete"].contains(url.lastPathComponent)
+    }
+
     /// `base` + escaped path segments + strictly escaped query.
     public static func url(_ base: URL, _ segments: [String], query: [(String, String?)] = []) -> URL {
         var text = base.absoluteString
@@ -166,7 +175,7 @@ public actor GoogleClient {
                 attempt -= 1
                 continue
             }
-            if attempt < retry.maxAttempts, Self.shouldRetry(status: status, reason: envelope?.reason, kind: request.kind) {
+            if attempt < retry.maxAttempts, Self.shouldRetry(status: status, reason: envelope?.reason, request: request) {
                 let retryAfter = http?.value(forHTTPHeaderField: "Retry-After").flatMap(TimeInterval.init)
                 await sleep(retry.delay(attempt: attempt, retryAfter: retryAfter))
                 continue
@@ -197,11 +206,11 @@ public actor GoogleClient {
         return items.count > limit ? Array(items.prefix(limit)) : items
     }
 
-    static func shouldRetry(status: Int, reason: String?, kind: GoogleRequest.Kind) -> Bool {
+    static func shouldRetry(status: Int, reason: String?, request: GoogleRequest) -> Bool {
         let rateLimited = status == 429 || (status == 403 && (reason == "rateLimitExceeded" || reason == "userRateLimitExceeded"))
         if rateLimited { return true }
-        // A 5xx on a send may still have delivered the message: never resend.
-        guard kind != .send else { return false }
+        // A 5xx may still have done the work: never resend mail or repeat an insert (duplicate event / draft / filter).
+        guard request.isIdempotent else { return false }
         return [500, 502, 503, 504].contains(status)
     }
 

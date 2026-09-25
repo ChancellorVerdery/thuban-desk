@@ -19,8 +19,12 @@ struct ThubanDeskApp: App {
         .defaultSize(width: 1440, height: 900)
         .commands {
             CommandGroup(replacing: .newItem) {
-                Button("New") { appModel.newItemRequest += 1 }
+                Button(appModel.area == .mail ? "New Message" : "New Event") { appModel.newItemRequest += 1 }
                     .keyboardShortcut("n", modifiers: .command)
+            }
+            CommandGroup(before: .toolbar) {
+                CalendarViewCommands(app: appModel)
+                Divider()
             }
             CommandGroup(replacing: .appSettings) {
                 Button("Settings…") { appModel.openSettings(appModel.settingsPane) }
@@ -38,6 +42,39 @@ struct ThubanDeskApp: App {
                 Button("Refresh") { Task { await appModel.refreshAll() } }.keyboardShortcut("r", modifiers: .command)
             }
         }
+    }
+}
+
+/// Calendar navigation in the View menu (also on bare keys in the grid: ← → T D W M ⌫, see CalendarAreaView).
+private struct CalendarViewCommands: View {
+    var app: AppModel
+
+    var body: some View {
+        let ui = app.calendar.ui
+        let inCalendar = app.area == .calendar && ui.editor == nil && ui.scope == nil
+        Button("Today") { ui.goToday() }
+            .keyboardShortcut("t", modifiers: .command)
+            .disabled(!inCalendar)
+        Button("Previous") { ui.step(-1) }
+            .keyboardShortcut(.leftArrow, modifiers: .command)
+            .disabled(!inCalendar)
+        Button("Next") { ui.step(1) }
+            .keyboardShortcut(.rightArrow, modifiers: .command)
+            .disabled(!inCalendar)
+        Divider()
+        Button("Day") { ui.setMode(.day) }
+            .keyboardShortcut("1", modifiers: [.command, .control])
+            .disabled(!inCalendar)
+        Button("Week") { ui.setMode(.week) }
+            .keyboardShortcut("2", modifiers: [.command, .control])
+            .disabled(!inCalendar)
+        Button("Month") { ui.setMode(.month) }
+            .keyboardShortcut("3", modifiers: [.command, .control])
+            .disabled(!inCalendar)
+        Divider()
+        Button("Delete Event…") { if let item = ui.selectedItem { ui.requestDelete(item) } }
+            .keyboardShortcut(.delete, modifiers: .command)
+            .disabled(!inCalendar || ui.selectedItem.map { !ui.canDelete($0) } ?? true)
     }
 }
 

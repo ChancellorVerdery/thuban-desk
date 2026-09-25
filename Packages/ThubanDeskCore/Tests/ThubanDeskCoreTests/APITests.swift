@@ -87,6 +87,40 @@ final class CalendarAPITests: XCTestCase {
         XCTAssertEqual(names.filter { $0 == "Thuban" }.count, 1)
     }
 
+    /// A 5xx may have gone through: only idempotent requests are repeated (no duplicate event / draft / filter).
+    func testServerErrorsRetryOnlyIdempotentRequests() {
+        let event = CalendarEvent(summary: "x", start: .allDay(CivilDate(year: 2026, month: 1, day: 1)), end: .allDay(CivilDate(year: 2026, month: 1, day: 2)))
+        let insert = CalendarEndpoints.insert(event, calendarID: "c", sendUpdates: .none)
+        XCTAssertFalse(GoogleClient.shouldRetry(status: 503, reason: nil, request: insert))
+        XCTAssertTrue(GoogleClient.shouldRetry(status: 429, reason: nil, request: insert))
+        XCTAssertFalse(GoogleClient.shouldRetry(status: 500, reason: nil, request: GmailEndpoints.createLabel(NewLabel(name: "L"))))
+        XCTAssertTrue(GoogleClient.shouldRetry(status: 503, reason: nil, request: GmailEndpoints.trashThread("t")))
+        XCTAssertTrue(GoogleClient.shouldRetry(status: 502, reason: nil, request: GmailEndpoints.deleteThread("t")))
+        XCTAssertTrue(GoogleClient.shouldRetry(status: 500, reason: nil, request: CalendarEndpoints.delete(eventID: "e", calendarID: "c", sendUpdates: .none)))
+    }
+
+    /// Answering one occurrence of a repeating invitation answers the series, so next week's card does not come back.
+    func testRSVPToARepeatingInvitationAnswersTheSeries() async throws {
+        let backend = FixtureGoogle(world: SampleData.world(now: designNow, zone: newYork))
+        let client = fixtureClient(backend, account: SampleData.primaryEmail)
+        let me = SampleData.primaryEmail
+        let weekly = CalendarEvent(summary: "Weekly sync", start: .timed(ny(2026, 9, 21, 10), timeZone: "America/New_York"),
+                                   end: .timed(ny(2026, 9, 21, 11), timeZone: "America/New_York"), recurrence: ["RRULE:FREQ=WEEKLY;COUNT=6"],
+                                   attendees: [EventAttendee(email: "boss@example.com", organizer: true, responseStatus: .accepted),
+                                               EventAttendee(email: me, isSelf: true, responseStatus: .needsAction)])
+        let master = try await client.insertEvent(weekly, calendarID: "recruiting@fixture")
+        let instances = try await client.events(calendarID: "recruiting@fixture", from: ny(2026, 9, 20), to: ny(2026, 10, 20))
+            .filter { $0.recurringEventId == master.id }
+        XCTAssertEqual(instances.count, 5)
+        XCTAssertTrue(instances.allSatisfy(\.needsResponse))
+        let answered = try await client.rsvp(.accepted, to: instances[0], calendarID: "recruiting@fixture", selfEmail: me)
+        XCTAssertEqual(answered.selfResponse, .accepted)
+        let after = try await client.events(calendarID: "recruiting@fixture", from: ny(2026, 9, 20), to: ny(2026, 10, 20))
+            .filter { $0.recurringEventId == master.id }
+        XCTAssertEqual(after.map(\.selfResponse), Array(repeating: .accepted, count: 5))
+        XCTAssertFalse(after.contains(where: \.needsResponse))
+    }
+
     func testFixtureWeekMatchesTheDesign() async throws {
         let backend = FixtureGoogle(world: SampleData.world(now: designNow, zone: newYork))
         let school = fixtureClient(backend, account: SampleData.schoolEmail)

@@ -10,13 +10,18 @@ struct MonthGridView: View {
     var month: YearMonth
 
     var body: some View {
+        // Re-evaluated every minute so "today" moves at midnight.
+        TimelineView(.everyMinute) { _ in grid }
+    }
+
+    private var grid: some View {
         let ui = app.calendar.ui
         let zone = app.zone
         let first = weeks.first?.first ?? month.firstDay
         let last = weeks.last?.last ?? month.firstDay
         let items = ui.events(from: first.startDate(in: zone), to: last.adding(days: 1).startDate(in: zone))
         let byDay = group(items)
-        VStack(spacing: 0) {
+        return VStack(spacing: 0) {
             HStack(spacing: 0) {
                 ForEach(Weekday.ordered(from: ui.firstWeekday), id: \.self) { day in
                     Text(day.shortName.uppercased())
@@ -113,9 +118,11 @@ private struct MonthDayCell: View {
                             .font(ThubanFont.display(15))
                             .foregroundStyle(inMonth ? theme.inkColor : theme.inkFaintColor)
                             .padding(.horizontal, 2)
-                            .padding(.bottom, 2)
+                            .frame(minWidth: 26, alignment: .leading)
                     }
                 }
+                // Same height with or without today's circle, so every cell's list starts at the same y.
+                .frame(height: 26)
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)

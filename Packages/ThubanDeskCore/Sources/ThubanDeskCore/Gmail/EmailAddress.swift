@@ -6,8 +6,9 @@ public struct EmailAddress: Codable, Hashable, Sendable, CustomStringConvertible
     public var email: String
 
     public init(_ email: String, name: String? = nil) {
-        self.email = email.trimmingCharacters(in: .whitespaces)
-        let trimmed = name?.trimmingCharacters(in: .whitespaces)
+        // Line breaks never survive into a name or address (header injection in replies).
+        self.email = HeaderValue.singleLine(email).trimmingCharacters(in: .whitespaces)
+        let trimmed = name.map(HeaderValue.singleLine)?.trimmingCharacters(in: .whitespaces)
         self.name = (trimmed?.isEmpty ?? true) ? nil : trimmed
     }
 
@@ -25,7 +26,8 @@ public struct EmailAddress: Codable, Hashable, Sendable, CustomStringConvertible
 
     /// Header form: `"Last, First" <a@b>`, `=?UTF-8?B?…?= <a@b>`, or the bare address.
     public var header: String {
-        guard let name else { return email }
+        let email = HeaderValue.singleLine(self.email).replacingOccurrences(of: " ", with: "")
+        guard let name = name.map(HeaderValue.singleLine) else { return email }
         if name.unicodeScalars.contains(where: { !$0.isASCII }) { return "\(RFC2047.encode(name)) <\(email)>" }
         let specials = CharacterSet(charactersIn: "()<>[]:;@\\,.\"")
         if name.rangeOfCharacter(from: specials) != nil {

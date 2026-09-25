@@ -21,7 +21,15 @@ RecurringScope, Mail, Compose, Today, Accounts, MailDark.
 5. **Live check** (later, by the user only): `scripts/live_check.sh "<calendar>"` creates one labelled test event,
    reads it back, deletes it, confirms deletion. It refuses to run without its env confirmation. Never run it.
 6. No Keychain: tokens live in `~/Library/Application Support/Thuban Desk/credentials.json` (mode 0600;
-   `THUBAN_DESK_HOME` overrides the whole home).
+   `THUBAN_DESK_HOME` overrides the whole home). Fixture mode never touches that folder: without
+   `THUBAN_DESK_HOME` it uses a throwaway temp home (`AppPaths.home`), so the fake Google cannot disconnect real
+   accounts.
+7. Outgoing headers are single-line: `HeaderValue.singleLine` strips CR/LF from subject, names, addresses,
+   In-Reply-To / References and filenames (`MIMEBuilder`), and `RFC2047.decode` never yields line breaks.
+8. Only idempotent requests are retried after a 5xx (`GoogleRequest.isIdempotent`): inserts / creates and sends
+   are retried on 429 only, so an ambiguous failure never creates a duplicate.
+9. Scopes include `https://mail.google.com/` (needed by Delete forever / Empty Trash); an account linked without it
+   gets "sign in again" instead of a bare 403.
 
 ## Layout
 

@@ -90,4 +90,28 @@ final class TodayLinksTests: XCTestCase {
         let stat = item("stat", 14, 16)
         XCTAssertEqual(TodayLinks.progress(of: stat, now: ny(2026, 9, 25, 15), zone: newYork), 0.5, accuracy: 0.001)
     }
+
+    func testDueTimeOfDeadlineAllDayEvents() {
+        func allDay(_ title: String, _ description: String?) -> CalendarEvent {
+            var event = CalendarEvent(summary: title, start: .allDay(CivilDate(year: 2026, month: 9, day: 25)), end: .allDay(CivilDate(year: 2026, month: 9, day: 26)))
+            event.description = description
+            return event
+        }
+        XCTAssertEqual(TodayLinks.dueTime(of: allDay("Homework 4 due · MATH 2210", "Due Fri 11:59 PM on Canvas.")), "11:59 PM")
+        XCTAssertEqual(TodayLinks.dueTime(of: allDay("Lab report due", "<p>Submission due at 23:59</p>")), "11:59 PM")
+        XCTAssertEqual(TodayLinks.dueTime(of: allDay("Essay due", "due by 9:00am")), "9:00 AM")
+        XCTAssertNil(TodayLinks.dueTime(of: allDay("Essay due", "No time given.")))
+        XCTAssertNil(TodayLinks.dueTime(of: allDay("Fall Career Fair", "Opens 10:00 AM, due to demand")))
+    }
+
+    func testAvatarTintsMatchTheDesign() {
+        XCTAssertEqual(AvatarTint.tint(forEmail: "priya.shah@crescentlabs-hq.example"), .signal)
+        XCTAssertEqual(AvatarTint.tint(forEmail: "maya.chen@students.example.edu"), .signal)
+        XCTAssertEqual(AvatarTint.tint(forEmail: "morgan.mom@example.com"), .neg)
+        XCTAssertEqual(AvatarTint.tint(forEmail: "epark@campus.example.edu"), .accent)
+        XCTAssertEqual(AvatarTint.tint(forEmail: "jordan.blake@example.edu"), .pos)
+        XCTAssertEqual(AvatarTint.tint(forEmail: "notifications@instructure.com"), .grey)
+        XCTAssertEqual(AvatarTint.tint(for: EmailAddress("Me@x.org"), own: ["me@x.org"]), .accent)
+        XCTAssertEqual(AvatarTint.tint(forEmail: "Priya.Shah@CrescentLabs.com"), .signal, "case-insensitive")
+    }
 }

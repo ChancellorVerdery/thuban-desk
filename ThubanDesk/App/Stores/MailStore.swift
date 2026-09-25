@@ -375,6 +375,7 @@ final class MailStore {
     func deleteForever(_ keys: [ThreadKey], confirmed: Confirmed) async throws {
         for key in keys {
             guard let client = app.client(for: key.account) else { continue }
+            try requirePermanentDelete(key.account)
             try await client.deleteThreadForever(key.threadID)
             threads.removeAll { $0.key == key }
             details[key] = nil
@@ -383,12 +384,21 @@ final class MailStore {
         await loadLabels()
     }
 
+    /// Permanent deletion needs the full-mail scope; an account linked before it was requested is told to sign in
+    /// again instead of getting a bare 403 from Google.
+    private func requirePermanentDelete(_ account: String) throws {
+        guard let granted = app.credentials.account(account.lowercased())?.scopes,
+              !GoogleScopes.allowsPermanentDelete(granted) else { return }
+        throw ThubanError.http(status: 403, message: "Insufficient permissions", reason: "insufficientPermissions")
+    }
+
     /// Empties Trash in one account or all (irreversible; confirmed). Returns how many threads were deleted.
     @discardableResult
     func emptyTrash(account: String?, confirmed: Confirmed) async throws -> Int {
         var total = 0
         for id in (account.map { [$0.lowercased()] } ?? accountOrder) {
             guard let client = app.client(for: id) else { continue }
+            try requirePermanentDelete(id)
             total += try await client.emptyTrash()
         }
         await loadList(force: true)

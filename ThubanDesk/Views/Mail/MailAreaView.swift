@@ -12,6 +12,12 @@ struct MailAreaView: View {
     var body: some View {
         VStack(spacing: 0) {
             MailToolbar()
+            // After a failed refresh the list is what was saved: say so, with Retry.
+            if !app.syncErrors.isEmpty && !app.isSyncing {
+                OfflineBanner(text: "Offline · showing saved mail — \(app.syncErrors.values.sorted().first ?? "")") {
+                    await app.refreshAll()
+                }
+            }
             HStack(spacing: 0) {
                 MailSidebar()
                 MailSplitView()
@@ -198,8 +204,9 @@ struct MailToolbar: View {
 
     private var syncText: String {
         if app.isSyncing || app.mail.isLoadingList { return "Syncing…" }
-        if let last = app.lastSync { return "Synced \(DeskFormat.time(last, zone: app.zone))" }
+        // A failed refresh wins over the time of the last good one (which would read as "all is well").
         if !app.syncErrors.isEmpty { return "Offline · showing saved mail" }
+        if let last = app.lastSync { return "Synced \(DeskFormat.time(last, zone: app.zone))" }
         return "Not synced yet"
     }
 

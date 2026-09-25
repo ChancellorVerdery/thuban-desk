@@ -154,13 +154,24 @@ extension GoogleClient {
         return results
     }
 
-    /// Answers an invitation (Yes / Maybe / No) by patching the user's own attendee entry.
+    /// Answers an invitation (Yes / Maybe / No) by patching the user's own attendee entry. For an occurrence of a
+    /// repeating invitation the answer covers the whole series (as Google Calendar's invitation buttons do): the
+    /// master's attendee list is patched, then the occurrence is re-read and patched too only when it is an
+    /// exception that kept its own answer. Returns the answered occurrence (or event).
     @discardableResult
     public func rsvp(_ status: ResponseStatus, to event: CalendarEvent, calendarID: String, selfEmail: String,
                      sendUpdates: SendUpdates = .all) async throws -> CalendarEvent {
-        guard let patch = CalendarEndpoints.rsvpPatch(for: event, status: status, selfEmail: selfEmail) else {
-            throw ThubanError.http(status: 400, message: "You are not on this event's guest list.", reason: "notAnAttendee")
+        let notOnList = ThubanError.http(status: 400, message: "You are not on this event's guest list.", reason: "notAnAttendee")
+        if event.recurringEventId != nil {
+            let master = try await master(of: event, calendarID: calendarID)
+            guard let seriesPatch = CalendarEndpoints.rsvpPatch(for: master, status: status, selfEmail: selfEmail) else { throw notOnList }
+            try await patchEvent(seriesPatch, eventID: master.id, calendarID: calendarID, sendUpdates: sendUpdates)
+            let occurrence = (try? await self.event(calendarID: calendarID, eventID: event.id)) ?? event
+            if occurrence.selfResponse == status { return occurrence }
+            guard let patch = CalendarEndpoints.rsvpPatch(for: occurrence, status: status, selfEmail: selfEmail) else { return occurrence }
+            return try await patchEvent(patch, eventID: event.id, calendarID: calendarID, sendUpdates: .none)
         }
+        guard let patch = CalendarEndpoints.rsvpPatch(for: event, status: status, selfEmail: selfEmail) else { throw notOnList }
         return try await patchEvent(patch, eventID: event.id, calendarID: calendarID, sendUpdates: sendUpdates)
     }
 }

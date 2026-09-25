@@ -137,6 +137,9 @@ public enum SampleData {
                 event("shift", "Shift · Atkins front desk", timed(w.adding(days: -20), 17, 0, 20, 0), location: "Atkins Library", recurrence: weekly([.monday])),
                 event("brunch", "Brunch with Maya", timed(w.adding(days: -7), 11, 0, 12, 30), location: "Amélie’s French Bakery"),
                 event("laundry", "Laundry + meal prep", timed(w.adding(days: 7), 16, 0, 17, 30)),
+                // Wednesday 3:45–4:00 PM: three events at once (with the resume review and TA office hours), so
+                // the week grid's side-by-side columns show up in the smoke screenshots.
+                event("package", "Pick up package", timed(w.adding(days: 3), 15, 45, 16, 15), location: "Student Union mail center"),
                 allDay("bday", "Mom’s birthday", w.adding(days: 6), recurrence: [RRule(frequency: .yearly).line]),
             ]
             personal[0].description = nil
@@ -157,6 +160,7 @@ public enum SampleData {
             let recruiting = [
                 event("phonescreen", "Phone screen · Piedmont Energy", timed(w.adding(days: 2), 16, 30, 17, 0), location: "Phone · (704) 555-0142",
                       description: "Data analyst intern, spring 2027. Recruiter: Dana Whitfield."),
+                event("resumereview", "Resume review · Career Center", timed(w.adding(days: 3), 15, 0, 16, 0), location: "Atkins 150"),
                 interview,
             ]
             let holidays = [allDay("columbus", "Columbus Day", CivilDate(year: w.year, month: 10, day: 12))]
@@ -178,7 +182,12 @@ public enum SampleData {
                 allDay("hw2", "Homework 2 due · MATH 2210", w.adding(days: -9)),
                 allDay("hw3", "Homework 3 due · MATH 2210", w.adding(days: -2)),
                 allDay("careerclose", "Career Fair sign-up closes", w.adding(days: 3)),
-                allDay("hw4", "Homework 4 due · MATH 2210", w.adding(days: 5)),
+                {
+                    // As a Canvas calendar feed writes it: an all-day entry whose description holds the due time.
+                    var hw4 = allDay("hw4", "Homework 4 due · MATH 2210", w.adding(days: 5))
+                    hw4.description = "Due Fri 11:59 PM on Canvas. Q3 and Q5 were updated after the outage."
+                    return hw4
+                }(),
                 allDay("fair", "Fall Career Fair", w.adding(days: 10)),
                 event("exam1math", "Exam 1 · MATH 2210", timed(w.adding(days: 11), 10, 10, 11, 0), location: "Fretwell 121"),
             ]

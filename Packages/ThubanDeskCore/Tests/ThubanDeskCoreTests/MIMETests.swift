@@ -165,6 +165,38 @@ final class MIMETests: XCTestCase {
         XCTAssertEqual(parsed.header("In-Reply-To"), "<abc123@mail.example.com>")
     }
 
+    /// Regression: encoded-words that decode to CR/LF must never become extra headers in a reply / forward.
+    func testReplyToEncodedWordsWithLineBreaksCannotInjectHeaders() throws {
+        func b64(_ text: String) -> String { "=?UTF-8?B?\(Data(text.utf8).base64EncodedString())?=" }
+        let raw = "From: \(b64("Mallory\r\nBcc: evil@example.com")) <mallory@example.com>\r\n"
+            + "To: alex.morgan@example.com\r\n"
+            + "Subject: \(b64("Hi\r\nBcc: evil@example.com"))\r\n"
+            + "Message-ID: <inj1@example.com>\r\nContent-Type: text/plain\r\n\r\nHello\r\n"
+        let parsed = MIMEParser.parse(raw)
+        let subject = try XCTUnwrap(parsed.decodedHeader("Subject"))
+        XCTAssertFalse(subject.contains("\r") || subject.contains("\n"))
+        let from = try XCTUnwrap(EmailAddress.parseList(parsed.header("From")).first)
+        XCTAssertFalse(from.name?.contains("\n") ?? true)
+        let original = MailMessage(id: "i", threadID: "t", date: designNow, from: from, to: [EmailAddress("alex.morgan@example.com")],
+                                   subject: subject, messageIDHeader: "<inj1@example.com>\r\nBcc: evil@example.com", text: "Hello")
+        let me = EmailAddress("alex.morgan@example.com", name: "Alex Morgan")
+        for message in [MIMEBuilder.reply(to: original, from: me, replyAll: false, html: nil, text: "OK", zone: newYork),
+                        MIMEBuilder.reply(to: original, from: me, replyAll: true, html: "<p>OK</p>", text: "OK", zone: newYork),
+                        MIMEBuilder.forward(original, from: me, to: [from], html: nil, text: "FYI",
+                                            attachments: [OutgoingAttachment(filename: "a\r\nBcc: evil@example.com.txt", mimeType: "text/plain", data: Data("x".utf8))],
+                                            zone: newYork)] {
+            let built = MIMEBuilder.build(message, date: designNow, zone: newYork, boundarySeed: "s")
+            let lines = built.components(separatedBy: "\r\n")
+            XCTAssertFalse(lines.contains { $0.lowercased().hasPrefix("bcc:") }, built)
+            XCTAssertNil(MIMEParser.parse(built).header("Bcc"))
+        }
+        // Values set directly (not via decode) are guarded too.
+        var direct = OutgoingMessage(from: EmailAddress("me@x.org", name: "Me\nBcc: a@b.c"), to: [EmailAddress("x@y.org")], subject: "S\r\nBcc: a@b.c", text: "t")
+        direct.references = ["<r@x>\r\nBcc: a@b.c"]
+        direct.inReplyTo = "<r@x>\nBcc: a@b.c"
+        XCTAssertFalse(MIMEBuilder.build(direct).components(separatedBy: "\r\n").contains { $0.lowercased().hasPrefix("bcc:") })
+    }
+
     func testForward() throws {
         let fwd = MIMEBuilder.forward(try original(), from: EmailAddress("alex.morgan@example.com"), to: [EmailAddress("dad@x.org")],
                                       html: "<p>FYI</p>", text: "FYI", zone: newYork)

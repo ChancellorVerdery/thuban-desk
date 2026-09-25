@@ -3,7 +3,13 @@ import Foundation
 /// RFC 2047 encoded-words in headers (`=?UTF-8?B?…?=`, `=?iso-8859-1?Q?…?=`).
 public enum RFC2047 {
     /// Decodes every encoded-word; whitespace between two adjacent encoded-words is dropped (RFC 2047 §6.2).
+    /// The result never contains CR, LF or other line breaks: an encoded-word can carry any bytes, and a decoded
+    /// line break would let remote text inject headers into a reply (`Subject: Hi\r\nBcc: …`).
     public static func decode(_ header: String) -> String {
+        HeaderValue.singleLine(decodeWords(header))
+    }
+
+    private static func decodeWords(_ header: String) -> String {
         guard header.contains("=?") else { return header }
         let pattern = try! NSRegularExpression(pattern: #"=\?([^?\s]+)\?([BbQq])\?([^?]*)\?="#)
         let ns = header as NSString
@@ -75,6 +81,22 @@ public enum RFC2047 {
             }
         }
         return Data(bytes)
+    }
+}
+
+/// Header-injection guard: header values built from user or remote text never contain line breaks.
+public enum HeaderValue {
+    /// Replaces CR, LF and other vertical whitespace / NUL with a space.
+    public static func singleLine(_ text: String) -> String {
+        guard text.unicodeScalars.contains(where: isBreak) else { return text }
+        return String(String.UnicodeScalarView(text.unicodeScalars.map { isBreak($0) ? " " : $0 }))
+    }
+
+    private static func isBreak(_ scalar: Unicode.Scalar) -> Bool {
+        switch scalar.value {
+        case 0x00, 0x0A, 0x0B, 0x0C, 0x0D, 0x85, 0x2028, 0x2029: return true
+        default: return false
+        }
     }
 }
 

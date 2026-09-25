@@ -62,6 +62,31 @@ public enum TodayLinks {
     }
 
     /// "Study group · MATH 2210" → "Study group" (the part before the first " · ").
+    /// The due time of a deadline-like all-day event ("Homework 4 due", Canvas feeds): the first clock time
+    /// ("11:59 PM", "11:59pm", "23:59") in its description after the word "due" — "11:59 PM", or nil when the
+    /// event is not a deadline or names no time (the row then leaves the right side empty on purpose).
+    public static func dueTime(of event: CalendarEvent) -> String? {
+        guard event.isAllDay else { return nil }
+        let title = event.title.lowercased()
+        guard title.range(of: #"\b(due|deadline)\b"#, options: .regularExpression) != nil else { return nil }
+        let text = HTMLSanitizer.plainText(event.description ?? "")
+        let pattern = #"(?i)\bdue\b[^.\n]*?\b(\d{1,2}):(\d{2})\s*([ap])\.?m\.?\b|(?i)\bdue\b[^.\n]*?\b([01]?\d|2[0-3]):(\d{2})\b"#
+        guard let regex = try? NSRegularExpression(pattern: pattern),
+              let match = regex.firstMatch(in: text, range: NSRange(text.startIndex..., in: text)) else { return nil }
+        func group(_ index: Int) -> String? {
+            guard let range = Range(match.range(at: index), in: text) else { return nil }
+            return String(text[range])
+        }
+        if let hour = group(1).flatMap(Int.init), let minute = group(2), let half = group(3), (1...12).contains(hour) {
+            return "\(hour):\(minute) \(half.uppercased() == "A" ? "AM" : "PM")"
+        }
+        if let hour = group(4).flatMap(Int.init), let minute = group(5) {
+            let h12 = hour % 12 == 0 ? 12 : hour % 12
+            return "\(h12):\(minute) \(hour < 12 ? "AM" : "PM")"
+        }
+        return nil
+    }
+
     public static func shortTitle(_ title: String) -> String {
         guard let range = title.range(of: " · ") else { return title }
         let head = title[..<range.lowerBound].trimmingCharacters(in: .whitespaces)

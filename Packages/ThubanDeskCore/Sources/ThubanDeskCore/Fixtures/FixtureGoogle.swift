@@ -24,6 +24,11 @@ public final class FixtureGoogle: @unchecked Sendable {
     public var log: [String] { lock.withLock { requestLog } }
     public var snapshot: FixtureWorld { lock.withLock { world } }
 
+    /// Replaces the fake's data (smoke scenes: an empty inbox / an empty day, then the original back).
+    public func replaceWorld(_ newWorld: FixtureWorld) {
+        lock.withLock { world = newWorld }
+    }
+
     /// A URLSession whose every request is answered by this backend.
     public func makeSession() -> URLSession {
         FixtureURLProtocol.backend = self

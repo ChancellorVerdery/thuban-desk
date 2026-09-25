@@ -158,6 +158,7 @@ public struct GoogleSignIn: Sendable {
         defer { receiver.stop() }
         let pkce = PKCE.generate()
         let state = PKCE.randomString(length: 32)
+        receiver.expect(state: state)
         openURL(oauth.authorizationURL(redirectURI: redirect, pkce: pkce, state: state, loginHint: loginHint))
         let callback = try await receiver.waitForCallback(timeout: timeout)
         if let error = callback.error {

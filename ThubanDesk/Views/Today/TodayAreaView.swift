@@ -33,6 +33,11 @@ struct TodayAreaView: View {
                 .scrollIndicators(.automatic)
             }
         }
+        // ⌘N ("New Event" in the menu while Today is showing) does what the toolbar's New event button does.
+        .onChange(of: app.newItemRequest) { _, _ in
+            guard app.area == .today else { return }
+            app.requestNewEvent()
+        }
         .task {
             let today = CivilDate(app.now(), in: app.zone)
             await app.calendar.ensureEvents(from: today.startDate(in: app.zone), to: today.adding(days: 2).startDate(in: app.zone))
@@ -228,11 +233,3 @@ extension AppModel {
     }
 }
 
-enum PersonTint {
-    /// A stable colour per person (the same address always gets the same one).
-    static func tint(for address: String) -> CalendarTint {
-        let palette: [CalendarTint] = [.signal, .neg, .pos, .accent]
-        let sum = address.lowercased().unicodeScalars.reduce(0) { $0 &+ Int($1.value) }
-        return palette[sum % palette.count]
-    }
-}

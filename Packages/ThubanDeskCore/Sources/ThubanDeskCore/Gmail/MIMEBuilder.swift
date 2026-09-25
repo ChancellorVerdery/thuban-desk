@@ -66,10 +66,15 @@ public enum MIMEBuilder {
         if !message.to.isEmpty { headers.append(("To", EmailAddress.headerList(message.to))) }
         if !message.cc.isEmpty { headers.append(("Cc", EmailAddress.headerList(message.cc))) }
         if !message.bcc.isEmpty { headers.append(("Bcc", EmailAddress.headerList(message.bcc))) }
-        headers.append(("Subject", RFC2047.encode(message.subject)))
+        // Every value from user or remote text is made single-line first (header injection guard).
+        let line = HeaderValue.singleLine
+        headers.append(("Subject", RFC2047.encode(line(message.subject))))
         headers.append(("Date", RFC2822Date.string(date, zone: zone)))
-        if let inReplyTo = message.inReplyTo { headers.append(("In-Reply-To", inReplyTo)) }
-        if !message.references.isEmpty { headers.append(("References", message.references.joined(separator: "\r\n "))) }
+        if let inReplyTo = message.inReplyTo.map(line), !inReplyTo.trimmingCharacters(in: .whitespaces).isEmpty {
+            headers.append(("In-Reply-To", inReplyTo))
+        }
+        let references = message.references.map(line).filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
+        if !references.isEmpty { headers.append(("References", references.joined(separator: "\r\n "))) }
         headers.append(("MIME-Version", "1.0"))
 
         let seed = boundarySeed ?? UUID().uuidString.replacingOccurrences(of: "-", with: "").lowercased()
@@ -103,10 +108,10 @@ public enum MIMEBuilder {
     }
 
     private static func attachmentPart(_ file: OutgoingAttachment) -> (headers: [(String, String)], content: String) {
-        let name = file.filename.replacingOccurrences(of: "\"", with: "'")
+        let name = HeaderValue.singleLine(file.filename).replacingOccurrences(of: "\"", with: "'")
         let encodedName = name.unicodeScalars.allSatisfy(\.isASCII) ? "\"\(name)\"" : "\"\(RFC2047.encode(name))\""
         let base64 = file.data.base64EncodedString(options: [.lineLength76Characters, .endLineWithCarriageReturn, .endLineWithLineFeed])
-        return ([("Content-Type", "\(file.mimeType); name=\(encodedName)"),
+        return ([("Content-Type", "\(HeaderValue.singleLine(file.mimeType)); name=\(encodedName)"),
                  ("Content-Disposition", "attachment; filename=\(encodedName)"),
                  ("Content-Transfer-Encoding", "base64")], base64)
     }

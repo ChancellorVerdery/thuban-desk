@@ -27,7 +27,7 @@ enum SmokeScenes {
     @MainActor
     static var all: [SmokeScene] {
         ShellSmokeScenes.first + CalendarSmokeScenes.scenes + MailSmokeScenes.scenes + TodaySmokeScenes.scenes
-            + SettingsSmokeScenes.scenes + IntegrationSmokeScenes.scenes + ShellSmokeScenes.last
+            + SettingsSmokeScenes.scenes + IntegrationSmokeScenes.scenes + StateSmokeScenes.scenes + ShellSmokeScenes.last
     }
 }
 

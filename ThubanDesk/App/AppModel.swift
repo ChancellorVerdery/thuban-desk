@@ -57,6 +57,7 @@ final class AppModel {
     private(set) var credentials = CredentialsFile()
     private(set) var signIn: SignInState = .idle
     @ObservationIgnored private var signInTask: Task<Void, Never>?
+    @ObservationIgnored private var signInAttempt: UUID?
 
     enum SignInState: Equatable {
         case idle
@@ -65,7 +66,9 @@ final class AppModel {
     }
 
     /// Linked accounts, primary (earliest linked) first.
-    var accounts: [GoogleAccount] { credentials.orderedAccounts }
+    var accounts: [GoogleAccount] { smokeHidesAccounts ? [] : credentials.orderedAccounts }
+    /// Smoke only (fixture mode): shows the app as if no account were linked, without touching the credentials file.
+    private(set) var smokeHidesAccounts = false
     var primaryAccount: GoogleAccount? { credentials.primary }
     /// Accounts that can be used (not signed out by Google).
     var activeAccounts: [GoogleAccount] { accounts.filter { !$0.disconnected } }
@@ -116,6 +119,19 @@ final class AppModel {
     }
 
     enum SyncTone { case ok, busy, problem, idle }
+
+    // MARK: Smoke hooks (fixture mode only)
+
+    func smokeHideAccounts(_ hide: Bool) {
+        guard isFixtureMode else { return }
+        smokeHidesAccounts = hide
+    }
+
+    /// Shows the offline state as a failed refresh would leave it.
+    func smokeSetSyncError(_ message: String?, account: String) {
+        guard isFixtureMode else { return }
+        syncErrors[account.lowercased()] = message
+    }
 
     // MARK: Confirmation
 
@@ -256,22 +272,28 @@ final class AppModel {
         let flow = GoogleSignIn(oauth: GoogleOAuth(config: config, session: session)) { url in
             DispatchQueue.main.async { NSWorkspace.shared.open(url) }
         }
+        let attempt = UUID()
+        signInAttempt = attempt
         signInTask = Task { @MainActor in
+            // A cancelled or superseded attempt must not overwrite the state set by `cancelSignIn` / a newer attempt
+            // (the receiver reports cancellation as ThubanError.oauth, not CancellationError).
+            let isCurrent = { !Task.isCancelled && self.signInAttempt == attempt }
             do {
                 let account = try await flow.run(loginHint: loginHint, now: Date())
+                guard isCurrent() else { return }
                 try await tokenStore.upsert(account)
                 signIn = .idle
                 NSApp.activate(ignoringOtherApps: true)
                 await refreshAll()
-            } catch is CancellationError {
-                signIn = .idle
             } catch {
-                signIn = .failed(error.localizedDescription)
+                guard isCurrent() else { return }
+                signIn = error is CancellationError ? .idle : .failed(error.localizedDescription)
             }
         }
     }
 
     func cancelSignIn() {
+        signInAttempt = nil
         signInTask?.cancel()
         signInTask = nil
         signIn = .idle

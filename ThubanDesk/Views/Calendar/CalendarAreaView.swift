@@ -205,6 +205,14 @@ struct CalendarKeyMonitor: NSViewRepresentable {
             remove()
             monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak app] event in
                 guard let app else { return event }
+                // ⌘← ⌘→ ⌘⌫ are View-menu shortcuts in Calendar; while a text field is being edited they keep their
+                // text meaning (line start / end, delete to line start), so hand them to the field editor first.
+                if event.modifierFlags.intersection([.command, .control, .option]) == .command, [123, 124, 51].contains(event.keyCode),
+                   let text = NSApp.keyWindow?.firstResponder as? NSTextView,
+                   MainActor.assumeIsolated({ app.area == .calendar }) {
+                    text.keyDown(with: event)
+                    return nil
+                }
                 let keyCode = event.keyCode, characters = event.charactersIgnoringModifiers, flags = event.modifierFlags
                 let handled = MainActor.assumeIsolated { Self.handle(keyCode: keyCode, characters: characters, flags: flags, app: app) }
                 return handled ? nil : event
@@ -227,6 +235,10 @@ struct CalendarKeyMonitor: NSViewRepresentable {
             switch keyCode {
             case 123: ui.step(-1); return true // ←
             case 124: ui.step(1); return true // →
+            case 51, 117: // ⌫ / ⌦: delete the selected event (through the confirm sheet)
+                guard let item = ui.selectedItem, ui.canDelete(item) else { return false }
+                ui.requestDelete(item)
+                return true
             default: break
             }
             switch characters?.lowercased() {

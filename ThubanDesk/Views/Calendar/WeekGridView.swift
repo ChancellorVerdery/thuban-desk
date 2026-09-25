@@ -22,21 +22,31 @@ struct WeekGridView: View {
     private let gutter = CalendarMetrics.gutter
 
     var body: some View {
+        // Re-evaluated every minute so the current-time line, past-event dimming and "today" follow the clock.
+        // (The timeline is only the trigger: `app.now()` stays the source of truth, since smoke pins it.)
+        TimelineView(.everyMinute) { _ in
+            grid
+        }
+        .background(theme.bgColor)
+    }
+
+    private var grid: some View {
         let ui = app.calendar.ui
         let zone = app.zone
         let first = days.first ?? ui.focusDay
         let last = days.last ?? ui.focusDay
         let items = ui.events(from: first.startDate(in: zone), to: last.adding(days: 1).startDate(in: zone))
         let bars = allDayBars(items)
-        GeometryReader { geo in
+        let allDayHeight = allDayRowHeight(bars)
+        return GeometryReader { geo in
             let colW = max(40, (geo.size.width - gutter) / CGFloat(max(1, days.count)))
             VStack(spacing: 0) {
                 header(colW: colW)
                 allDayRow(bars: bars, colW: colW)
-                timeGrid(items: items, colW: colW, width: geo.size.width)
+                timeGrid(items: items, colW: colW, width: geo.size.width,
+                         viewportHeight: geo.size.height - CalendarMetrics.headerHeight - allDayHeight)
             }
         }
-        .background(theme.bgColor)
     }
 
     // MARK: Header
@@ -122,11 +132,23 @@ struct WeekGridView: View {
         event.isAllDay || event.endDate(in: app.zone).timeIntervalSince(event.startDate(in: app.zone)) >= 86_400
     }
 
+    private static let maxAllDayLanes = 4
+
+    private func allDayRowHeight(_ bars: [Bar]) -> CGFloat {
+        let lanes = min((bars.map(\.lane).max() ?? -1) + 1, Self.maxAllDayLanes)
+        return max(44, 18 + CGFloat(lanes) * 24 + CGFloat(max(0, lanes - 1)) * 4)
+    }
+
     private func allDayRow(bars: [Bar], colW: CGFloat) -> some View {
         let ui = app.calendar.ui
         let lanes = (bars.map(\.lane).max() ?? -1) + 1
-        let shownLanes = min(lanes, 4)
-        let height = max(44, 18 + CGFloat(shownLanes) * 24 + CGFloat(max(0, shownLanes - 1)) * 4)
+        // Up to 4 lanes; when there are more, 3 lanes of bars and a "+N more" chip per day in the 4th.
+        let overflow = lanes > Self.maxAllDayLanes
+        let barLanes = overflow ? Self.maxAllDayLanes - 1 : lanes
+        let height = allDayRowHeight(bars)
+        let hiddenPerDay: [Int] = days.indices.map { index in
+            overflow ? bars.filter { $0.lane >= barLanes && $0.first <= index && index <= $0.last }.count : 0
+        }
         return ZStack(alignment: .topLeading) {
             HStack(spacing: 0) {
                 Text("all-day")
@@ -138,17 +160,32 @@ struct WeekGridView: View {
                 ForEach(days, id: \.self) { day in
                     Color.clear
                         .frame(width: colW, height: height)
-                        .calendarDayGround(isToday: day == ui.today, isWeekend: false, theme: theme)
+                        .calendarDayGround(isToday: day == ui.today,
+                                           isWeekend: days.count > 1 && (day.weekday == .saturday || day.weekday == .sunday), theme: theme)
                         .contentShape(Rectangle())
                         .onTapGesture(count: 2) { ui.newEvent(on: day, allDay: true) }
                         .onTapGesture { ui.closePopover() }
                         .thubanHairline(.leading, color: theme.lineColor)
                 }
             }
-            ForEach(bars.filter { $0.lane < shownLanes }) { bar in
+            ForEach(bars.filter { $0.lane < barLanes }) { bar in
                 AllDayChip(item: bar.item, isPast: bar.item.event.endDate(in: app.zone) <= app.now())
                     .frame(width: CGFloat(bar.last - bar.first + 1) * colW - 8, height: 24)
                     .offset(x: gutter + CGFloat(bar.first) * colW + 4, y: 9 + CGFloat(bar.lane) * 28)
+            }
+            ForEach(Array(days.enumerated()), id: \.element) { index, day in
+                if hiddenPerDay[index] > 0 {
+                    Button("+\(hiddenPerDay[index]) more") { ui.show(day, mode: .day) }
+                        .buttonStyle(.plain)
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(theme.brassInkColor)
+                        .padding(.horizontal, 8)
+                        .frame(width: colW - 8, height: 24, alignment: .leading)
+                        .contentShape(Rectangle())
+                        .offset(x: gutter + CGFloat(index) * colW + 4, y: 9 + CGFloat(barLanes) * 28)
+                        .accessibilityLabel("\(hiddenPerDay[index]) more all-day events on \(CalendarText.longDay(day))")
+                        .help("Show this day")
+                }
             }
         }
         .frame(height: height)
@@ -188,7 +225,7 @@ struct WeekGridView: View {
         return result
     }
 
-    private func timeGrid(items: [AgendaEvent], colW: CGFloat, width: CGFloat) -> some View {
+    private func timeGrid(items: [AgendaEvent], colW: CGFloat, width: CGFloat, viewportHeight: CGFloat) -> some View {
         let ui = app.calendar.ui
         let blocks = blocks(items)
         let pending = ui.pendingMove
@@ -212,23 +249,36 @@ struct WeekGridView: View {
                     if let create {
                         creationPreview(create, colW: colW)
                     }
-                    nowLine(colW: colW).zIndex(3)
+                    // The line runs under the events (so the current event's title stays readable); the dot and
+                    // the gutter time stay on top.
+                    nowLine(colW: colW, marker: false).zIndex(0.5)
+                    nowLine(colW: colW, marker: true).zIndex(3)
                 }
                 .frame(width: width, height: 24 * hh, alignment: .topLeading)
             }
             .scrollIndicators(.never)
-            .onAppear { scrollToMorning(proxy, blocks: blocks) }
-            .onChange(of: ui.scrollRequest) { _, _ in scrollToMorning(proxy, blocks: blocks) }
+            // Room below 11 PM so an anchor near the end can still land 8 pt below the top edge.
+            .contentMargins(.bottom, Self.scrollBottomMargin, for: .scrollContent)
+            .onAppear { scrollToMorning(proxy, blocks: blocks, viewportHeight: viewportHeight) }
+            .onChange(of: ui.scrollRequest) { _, _ in scrollToMorning(proxy, blocks: blocks, viewportHeight: viewportHeight) }
         }
     }
 
-    private func scrollToMorning(_ proxy: ScrollViewProxy, blocks: [Block]) {
+    private static let scrollBottomMargin: CGFloat = 12
+
+    private func scrollToMorning(_ proxy: ScrollViewProxy, blocks: [Block], viewportHeight: CGFloat) {
         let earliest = blocks.map { Int($0.startMinute) / 60 }.min() ?? 7
         var hour = max(0, min(7, earliest))
         // Opened from elsewhere (Today, Mail, search): keep the selected event in view.
         if let selected = app.calendar.ui.selectedItem, !selected.event.isAllDay {
             let startHour = Calendar.gregorian(app.zone).component(.hour, from: selected.start(in: app.zone))
             if startHour >= 12 { hour = max(0, startHour - 3) }
+        }
+        // The scroll clamps at the end of the content: never ask for an hour whose anchor (8 pt above its line)
+        // cannot reach the top, or the hour label would be cut in half.
+        if viewportHeight > 0 {
+            let lastReachable = Int(((24 * hh + Self.scrollBottomMargin + 8 - viewportHeight) / hh).rounded(.down))
+            hour = max(0, min(hour, lastReachable))
         }
         DispatchQueue.main.async { proxy.scrollTo(hour, anchor: .top) }
     }
@@ -269,22 +319,25 @@ struct WeekGridView: View {
     }
 
     @ViewBuilder
-    private func nowLine(colW: CGFloat) -> some View {
+    private func nowLine(colW: CGFloat, marker: Bool) -> some View {
         let ui = app.calendar.ui
         if let index = days.firstIndex(of: ui.today) {
             let minutes = EventLayout.minutes(of: app.now(), from: ui.today, zone: app.zone)
             let y = CGFloat(minutes / 60) * hh
             let x = gutter + CGFloat(index) * colW
             ZStack(alignment: .topLeading) {
-                Rectangle().fill(theme.negTextColor).frame(width: colW, height: 2).offset(x: x, y: y)
-                Circle().fill(theme.negTextColor).frame(width: 10, height: 10).offset(x: x - 5, y: y - 4)
-                Text(CalendarText.clock(app.now(), zone: app.zone, suffix: false))
-                    .font(.system(size: 11, weight: .bold))
-                    .foregroundStyle(theme.negTextColor)
-                    .padding(.leading, 4)
-                    .frame(width: gutter - 6, alignment: .trailing)
-                    .background(theme.bgColor)
-                    .offset(y: y - 8)
+                if marker {
+                    Circle().fill(theme.negTextColor).frame(width: 10, height: 10).offset(x: x - 5, y: y - 4)
+                    Text(CalendarText.clock(app.now(), zone: app.zone, suffix: false))
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundStyle(theme.negTextColor)
+                        .padding(.leading, 4)
+                        .frame(width: gutter - 6, alignment: .trailing)
+                        .background(theme.bgColor)
+                        .offset(y: y - 8)
+                } else {
+                    Rectangle().fill(theme.negTextColor).frame(width: colW, height: 2).offset(x: x, y: y)
+                }
             }
             .allowsHitTesting(false)
             .accessibilityHidden(true)
@@ -328,6 +381,18 @@ struct WeekGridView: View {
                 }
                 .contentShape(Rectangle())
                 .onTapGesture { if !isPending { ui.select(item) } }
+                .accessibilityAction { if !isPending { ui.select(item) } }
+                .focusable(!isPending)
+                .onKeyPress(.return) {
+                    guard !isPending else { return .ignored }
+                    ui.select(item)
+                    return .handled
+                }
+                .onKeyPress(.space) {
+                    guard !isPending else { return .ignored }
+                    ui.select(item)
+                    return .handled
+                }
                 .gesture(editable ? moveGesture(block, colW: colW) : nil)
                 .offset(x: rect.minX, y: rect.minY)
                 .zIndex(dragging || isPending ? 2 : 1)
@@ -526,7 +591,7 @@ private struct ResizeHandle: View {
 // MARK: - Event blocks
 
 /// A timed event in the grid (design: soft fill, 3 pt bar in the calendar colour, title / time / place; one line
-/// when short; dashed when you have not answered the invitation; past events at 62 %).
+/// when short; dashed when you have not answered the invitation; past events: fill and bar at 62 %, text in inkDim).
 struct TimedEventBlock: View {
     @Environment(AppModel.self) private var app
     @Environment(\.thubanTheme) private var theme
@@ -540,7 +605,9 @@ struct TimedEventBlock: View {
     var body: some View {
         let event = item.event
         let tint = item.tint
-        let text = theme.textColor(for: tint)
+        // Past: only the fill and the bar fade; the text switches to inkDim (≥ 4.5:1) instead of fading with them.
+        let text = isPast ? theme.inkDimColor : theme.textColor(for: tint)
+        let fade = isPast ? 0.62 : 1
         let tentative = event.needsResponse || event.selfResponse == .tentative
         let short = height < 38
         let zone = app.zone
@@ -579,14 +646,14 @@ struct TimedEventBlock: View {
             if tentative {
                 RoundedRectangle(cornerRadius: 6, style: .continuous).fill(theme.panelColor)
                 RoundedRectangle(cornerRadius: 6, style: .continuous)
-                    .strokeBorder(theme.color(for: tint), style: StrokeStyle(lineWidth: 1, dash: [4, 3]))
+                    .strokeBorder(theme.color(for: tint).opacity(fade), style: StrokeStyle(lineWidth: 1, dash: [4, 3]))
             } else {
-                RoundedRectangle(cornerRadius: 6, style: .continuous).fill(theme.softColor(for: tint))
+                RoundedRectangle(cornerRadius: 6, style: .continuous).fill(theme.softColor(for: tint).opacity(fade))
             }
         }
         .overlay(alignment: .leading) {
             UnevenRoundedRectangle(topLeadingRadius: 6, bottomLeadingRadius: 6, style: .continuous)
-                .fill(theme.color(for: tint))
+                .fill(theme.color(for: tint).opacity(fade))
                 .frame(width: 3)
         }
         .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
@@ -597,7 +664,6 @@ struct TimedEventBlock: View {
                 RoundedRectangle(cornerRadius: 6, style: .continuous).strokeBorder(theme.color(for: tint), lineWidth: 1)
             }
         }
-        .opacity(isPast ? 0.62 : 1)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("\(event.title), \(range)")
         .accessibilityAddTraits(.isButton)
@@ -617,20 +683,21 @@ struct AllDayChip: View {
     var body: some View {
         let ui = app.calendar.ui
         let tentative = item.event.needsResponse
+        let fade = isPast ? 0.62 : 1
         Button {
             ui.select(item)
         } label: {
             Text(item.event.title)
                 .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(theme.textColor(for: item.tint))
+                .foregroundStyle(isPast ? theme.inkDimColor : theme.textColor(for: item.tint))
                 .lineLimit(1)
                 .padding(.horizontal, 8)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-                .background(tentative ? theme.panelColor : theme.softColor(for: item.tint), in: RoundedRectangle(cornerRadius: radius, style: .continuous))
+                .background(tentative ? theme.panelColor : theme.softColor(for: item.tint).opacity(fade), in: RoundedRectangle(cornerRadius: radius, style: .continuous))
                 .overlay {
                     if tentative {
                         RoundedRectangle(cornerRadius: radius, style: .continuous)
-                            .strokeBorder(theme.color(for: item.tint), style: StrokeStyle(lineWidth: 1, dash: [4, 3]))
+                            .strokeBorder(theme.color(for: item.tint).opacity(fade), style: StrokeStyle(lineWidth: 1, dash: [4, 3]))
                     } else if ui.selectedID == item.id {
                         RoundedRectangle(cornerRadius: radius, style: .continuous).strokeBorder(theme.color(for: item.tint), lineWidth: 1)
                     }
@@ -638,7 +705,6 @@ struct AllDayChip: View {
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .opacity(isPast ? 0.62 : 1)
         .anchorPreference(key: SelectedEventAnchorKey.self, value: .bounds) { ui.selectedID == item.id ? $0 : nil }
         .accessibilityLabel("\(item.event.title), all day")
         .help(item.event.title)

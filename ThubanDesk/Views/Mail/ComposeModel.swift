@@ -34,6 +34,9 @@ final class ComposeModel: Identifiable {
 
     @ObservationIgnored weak var app: AppModel?
     @ObservationIgnored private var autosaveTask: Task<Void, Never>?
+    /// The drafts.create / drafts.update request in flight. Cancelling `autosaveTask` does not stop it, so a send
+    /// or another save waits for it (and picks up the draft id it created) instead of racing it.
+    @ObservationIgnored private var inflightSave: Task<Void, Never>?
     @ObservationIgnored private var editCount = 0
     @ObservationIgnored private var savedEditCount = 0
 
@@ -168,18 +171,34 @@ final class ComposeModel: Identifiable {
 
     /// Saves (creates or updates) the Gmail draft. Only while Changes are on; nothing for an empty message.
     func saveDraft() async {
+        await waitForPendingSave()
         guard let app else { return }
         guard app.settings.writesEnabled else { saveState = .writesOff; return }
         guard !draft.isEmpty || draft.draftID != nil, let from = fromAddress else { return }
         let count = editCount
         saveState = .saving
-        do {
-            let saved = try await app.mail.saveDraft(draft.outgoing(from: from, ownAddresses: app.ownAddresses, zone: app.zone), account: draft.account)
-            draft.draftID = saved.draftID
-            savedEditCount = count
-            saveState = .saved(app.now())
-        } catch {
-            saveState = .failed(error.localizedDescription)
+        let outgoing = draft.outgoing(from: from, ownAddresses: app.ownAddresses, zone: app.zone)
+        let account = draft.account
+        let task = Task { @MainActor in
+            do {
+                let saved = try await app.mail.saveDraft(outgoing, account: account)
+                self.draft.draftID = saved.draftID
+                self.savedEditCount = count
+                self.saveState = .saved(app.now())
+            } catch {
+                self.saveState = .failed(error.localizedDescription)
+            }
+        }
+        inflightSave = task
+        await task.value
+        if inflightSave == task { inflightSave = nil }
+    }
+
+    /// Waits until no draft save is in flight (so `draft.draftID` is the one Gmail knows).
+    func waitForPendingSave() async {
+        while let running = inflightSave {
+            await running.value
+            if inflightSave == running { inflightSave = nil }
         }
     }
 
@@ -238,7 +257,12 @@ final class ComposeModel: Identifiable {
         var text = "“\(subject)” to \(list), from \(from.email). Sent mail can’t be called back."
         if app.isFixtureMode { text += " (Sample data: sending is switched off, so this will be refused.)" }
         let modelID = id
-        app.confirm(ConfirmRequest(title: "Send this message?", message: text, actionLabel: "Send", workingLabel: "Sending…") { confirmed in
+        app.confirm(ConfirmRequest(title: "Send this message?", message: text, actionLabel: "Send", workingLabel: "Sending…") { [self] confirmed in
+            // An autosave already in flight may create the draft: wait for it and send through that draft, so no
+            // copy of the sent mail is left behind in Drafts.
+            await self.waitForPendingSave()
+            var message = message
+            message.draftID = self.draft.draftID
             try await app.mail.send(message, account: account, confirmed: confirmed)
             if app.mail.compose?.id == modelID { app.mail.compose = nil }
         })

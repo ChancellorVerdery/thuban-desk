@@ -2,9 +2,10 @@ import Foundation
 
 /// OAuth scopes requested at sign-in (one consent covers Calendar and Mail).
 ///
-/// Note: `gmail.modify` covers trash/untrash but NOT permanent deletion — `threads.delete` ("Delete forever") and
-/// emptying Trash need `https://mail.google.com/`. Add `GoogleScopes.fullMail` to `all` if that feature must work;
-/// until then Google answers 403 `insufficientPermissions` and the UI should say so.
+/// `gmail.modify` covers trash/untrash but NOT permanent deletion — `threads.delete` ("Delete forever", "Empty
+/// Trash") needs `https://mail.google.com/`, so `fullMail` is requested too. An account linked before it was added
+/// gets 403 `insufficientPermissions` for those two actions; `ThubanError` explains that signing in again (which
+/// uses `include_granted_scopes`) grants it.
 public enum GoogleScopes {
     public static let gmailModify = "https://www.googleapis.com/auth/gmail.modify"
     public static let gmailSend = "https://www.googleapis.com/auth/gmail.send"
@@ -14,7 +15,10 @@ public enum GoogleScopes {
     public static let openID = "openid"
     public static let email = "email"
 
-    public static let all: [String] = [gmailModify, gmailSend, gmailSettingsBasic, calendar, openID, email]
+    public static let all: [String] = [gmailModify, gmailSend, gmailSettingsBasic, fullMail, calendar, openID, email]
+
+    /// Whether an account's granted scopes allow permanent deletion (`threads.delete`).
+    public static func allowsPermanentDelete(_ granted: [String]) -> Bool { granted.contains(fullMail) }
 }
 
 /// Google endpoints (overridable in tests only through the URLSession stub, never by configuration).

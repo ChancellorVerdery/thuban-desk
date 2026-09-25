@@ -54,7 +54,7 @@ private struct NeedsReplyRow: View {
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
-            AvatarView(name: name, tint: PersonTint.tint(for: sender?.email ?? name), size: 34)
+            AvatarView(name: name, tint: AvatarTint.tint(for: sender, own: app.ownAddresses), size: 34)
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 8) {
                     Text(name).font(.system(size: 14.5, weight: .semibold)).foregroundStyle(theme.inkColor).lineLimit(1)

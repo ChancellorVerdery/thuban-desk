@@ -33,9 +33,16 @@ public enum ThubanError: Error, LocalizedError, Equatable, Sendable {
         case .accountDisconnected(let email): return "Google signed \(email) out. Sign in again in Settings → Accounts."
         case .writesDisabled: return "Changes are turned off in Settings."
         case .sendDisabled: return "Sending is disabled in this mode."
+        case .http(403, _, let reason) where Self.isScopeReason(reason):
+            return "This account has not given Thuban Desk permission for that. Sign in to it again in Settings → Accounts to grant it."
         case .http(let status, let message, _): return "Google returned \(status): \(message)"
         case .blocked(let message): return "Blocked: \(message)"
         }
+    }
+
+    private static func isScopeReason(_ reason: String?) -> Bool {
+        guard let reason = reason?.lowercased() else { return false }
+        return reason == "insufficientpermissions" || reason == "access_token_scope_insufficient"
     }
 
     /// 404 / 410: the item is gone (deleted elsewhere).

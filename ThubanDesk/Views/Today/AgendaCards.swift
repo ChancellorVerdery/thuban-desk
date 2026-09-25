@@ -306,6 +306,11 @@ struct TomorrowCard: View {
             Spacer(minLength: 8)
             if item.event.needsResponse {
                 Chip("Not answered", kind: .neg)
+            } else if let due = TodayLinks.dueTime(of: item.event) {
+                // A deadline's due time (from its description, as Canvas feeds write it); none otherwise.
+                Text(due)
+                    .font(ThubanFont.body(12.5))
+                    .foregroundStyle(theme.inkDimColor)
             }
         }
         .padding(.horizontal, 18)

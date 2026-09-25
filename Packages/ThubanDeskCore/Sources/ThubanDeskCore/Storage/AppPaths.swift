@@ -7,16 +7,22 @@ public enum AppPaths {
     /// Set by tests to redirect every path without touching the process environment.
     nonisolated(unsafe) public static var overrideHome: URL?
 
-    /// `~/Library/Application Support/Thuban Desk` unless overridden.
+    /// `~/Library/Application Support/Thuban Desk` unless overridden. Fixture mode never uses the real folder:
+    /// without `THUBAN_DESK_HOME` it gets a throwaway temp directory, so the fake Google (which answers
+    /// `invalid_grant` to any real refresh token) can never disconnect — and erase — the user's real accounts.
     public static var home: URL {
         if let overrideHome { return overrideHome }
         if let raw = ProcessInfo.processInfo.environment[homeVariable]?.trimmingCharacters(in: .whitespacesAndNewlines), !raw.isEmpty {
             return URL(fileURLWithPath: (raw as NSString).expandingTildeInPath, isDirectory: true)
         }
+        if FixtureMode.isEnabled { return fixtureFallbackHome }
         let support = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
             ?? URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent("Library/Application Support", isDirectory: true)
         return support.appendingPathComponent("Thuban Desk", isDirectory: true)
     }
+
+    private static let fixtureFallbackHome = FileManager.default.temporaryDirectory
+        .appendingPathComponent("thuban-desk-fixtures-\(ProcessInfo.processInfo.processIdentifier)", isDirectory: true)
 
     public static var settingsFile: URL { home.appendingPathComponent("settings.json") }
     /// OAuth client + every account's tokens, mode 0600. Deliberately a file rather than the Keychain: an

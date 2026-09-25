@@ -259,10 +259,6 @@ enum MailDateText {
 /// A deterministic avatar colour for a person (the user = accent).
 enum MailAvatarTint {
     static func tint(for address: EmailAddress?, own: Set<String>) -> CalendarTint {
-        guard let address else { return .grey }
-        if own.contains(address.normalized) { return .accent }
-        let roles: [CalendarTint] = [.signal, .pos, .neg, .grey, .accent]
-        let sum = address.normalized.unicodeScalars.reduce(0) { ($0 &* 31 &+ Int($1.value)) & 0xffff }
-        return roles[sum % roles.count]
+        AvatarTint.tint(for: address, own: own)
     }
 }

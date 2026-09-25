@@ -136,11 +136,14 @@ final class OAuthTests: XCTestCase {
     func testLoopbackReceiverReceivesTheRedirect() async throws {
         let receiver = LoopbackReceiver()
         let redirect = try await receiver.start()
+        receiver.expect(state: "xyz")
         XCTAssertEqual(redirect.host, "127.0.0.1")
         XCTAssertNotNil(redirect.port)
         let waiter = Task { try await receiver.waitForCallback(timeout: 10) }
-        // A stray request first (ignored), then the real redirect.
+        // Stray requests first (ignored): a favicon, and a forged error callback with the wrong state.
         _ = try? await URLSession.shared.data(from: URL(string: "\(redirect.absoluteString)/favicon.ico")!)
+        let (_, forged) = try await URLSession.shared.data(from: URL(string: "\(redirect.absoluteString)/?error=x&state=wrong")!)
+        XCTAssertEqual((forged as? HTTPURLResponse)?.statusCode, 400)
         let (data, _) = try await URLSession.shared.data(from: URL(string: "\(redirect.absoluteString)/?code=abc&state=xyz")!)
         XCTAssertTrue(String(decoding: data, as: UTF8.self).contains("You can close this tab"))
         let callback = try await waiter.value

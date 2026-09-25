@@ -3,7 +3,9 @@ import Network
 
 /// A one-shot HTTP listener on `127.0.0.1:<random port>` that receives Google's OAuth redirect
 /// (`GET /?code=…&state=…` or `?error=…`), answers the browser with a short page and hands the query back.
-/// Requests without `code` / `error` (favicon, prefetch) get a 404 and are ignored.
+/// Requests without `code` / `error` (favicon, prefetch) get a 404 and are ignored. Once `expect(state:)` is set,
+/// a callback with any other `state` (another local process or web page poking the port) gets a 400 and the
+/// listener keeps waiting, so it cannot cancel a sign-in in progress.
 public final class LoopbackReceiver: @unchecked Sendable {
     public struct Callback: Sendable, Equatable {
         public var code: String?
@@ -16,6 +18,7 @@ public final class LoopbackReceiver: @unchecked Sendable {
     private var listener: NWListener?
     private var continuation: CheckedContinuation<Callback, Error>?
     private var pending: Result<Callback, Error>?
+    private var expectedState: String?
     private let successHTML: String
 
     public init(successHTML: String = LoopbackReceiver.defaultPage) {
@@ -60,6 +63,11 @@ public final class LoopbackReceiver: @unchecked Sendable {
         }
         guard port != 0 else { throw ThubanError.oauth("Local sign-in listener has no port.") }
         return URL(string: "http://127.0.0.1:\(port)")!
+    }
+
+    /// Only a callback carrying this `state` finishes the sign-in (call before opening the browser).
+    public func expect(state: String) {
+        queue.sync { self.expectedState = state }
     }
 
     /// Waits for the redirect (or throws after `timeout` seconds / on `cancel()`).
@@ -136,7 +144,9 @@ public final class LoopbackReceiver: @unchecked Sendable {
         let parts = requestLine.split(separator: " ")
         let target = parts.count >= 2 ? String(parts[1]) : "/"
         let callback = Self.parse(target: target)
-        if let callback {
+        if let callback, let expected = expectedState, callback.state != expected {
+            send(status: "400 Bad Request", body: Self.errorPage("This sign-in link does not belong to the current request."), on: connection)
+        } else if let callback {
             let body = callback.error == nil ? successHTML : Self.errorPage(callback.errorDescription ?? callback.error ?? "Sign-in failed")
             send(status: "200 OK", body: body, on: connection)
             finish(.success(callback))
