@@ -28,7 +28,7 @@ final class MailStore {
             guard scope != oldValue else { return }
             app?.settings.lastMailFolder = scope.folder.storageKey
             checked = []
-            Task { await loadList() }
+            if !suppressReload { Task { await loadList() } }
         }
     }
     var filter: MailListFilter = .all
@@ -55,6 +55,17 @@ final class MailStore {
     var selection: ThreadKey?
     /// Multi-select for bulk actions.
     var checked: Set<ThreadKey> = []
+
+    // MARK: UI state (Mail area)
+
+    /// The open Compose window (nil = closed). See `ComposeModel`.
+    var compose: ComposeModel?
+    /// Threads whose remote images the user allowed this session ("Load images").
+    var imagesAllowed: Set<ThreadKey> = []
+    /// Earlier messages the user expanded in the reader (message ids).
+    var expandedMessages: Set<String> = []
+    /// Set after the first list load finished (empty states wait for it).
+    private(set) var hasLoadedList = false
 
     // MARK: Derived
 
@@ -115,8 +126,19 @@ final class MailStore {
 
     // MARK: Loading
 
-    /// Labels, the current list, filters and the NeedsReply scan.
+    @ObservationIgnored private var suppressReload = false
+    @ObservationIgnored private var restoredFolder = false
+
+    /// Labels, the current list, filters and the NeedsReply scan. The first refresh reopens the last folder.
     func refresh() async {
+        if !restoredFolder {
+            restoredFolder = true
+            if let stored = app?.settings.lastMailFolder, let folder = MailFolder(storageKey: stored), folder != scope.folder {
+                suppressReload = true
+                scope = MailScope(folder: folder)
+                suppressReload = false
+            }
+        }
         await loadLabels()
         await loadList(force: true)
         await loadNeedsReply()
@@ -181,6 +203,7 @@ final class MailStore {
         } else {
             listError = failures.first
         }
+        hasLoadedList = true
     }
 
     /// The full thread (cached after the first fetch).
@@ -192,11 +215,13 @@ final class MailStore {
         return thread
     }
 
-    /// Opens a thread in the reader and marks it read (reversible, runs immediately like Gmail).
-    func open(_ key: ThreadKey) async {
+    /// Opens a thread in the reader and marks it read (reversible, runs immediately like Gmail). `markRead: false`
+    /// previews without changing anything.
+    func open(_ key: ThreadKey, markRead: Bool = true) async {
+        if selection != key { expandedMessages = [] }
         selection = key
         _ = try? await thread(key)
-        if threads.first(where: { $0.key == key })?.isUnread == true {
+        if markRead, threads.first(where: { $0.key == key })?.isUnread == true {
             await perform(.markRead, on: [key])
         }
     }
@@ -339,6 +364,8 @@ final class MailStore {
     /// THE SEND PATH. Only callable with a `Confirmed` from the ConfirmWriteSheet; never from tests or smoke.
     func send(_ message: OutgoingMessage, account: String, confirmed: Confirmed) async throws {
         guard let client = app.client(for: account) else { throw ThubanError.notSignedIn(account) }
+        // drafts.send sends what is stored: bring the saved draft up to date first.
+        if message.draftID != nil { _ = try await client.saveDraft(message) }
         try await client.send(message)
         if let thread = message.threadID { _ = try? await self.thread(ThreadKey(account: account, threadID: thread), force: true) }
         await loadList(force: true)
