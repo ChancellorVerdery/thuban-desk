@@ -30,6 +30,8 @@ targets:
       path: ThubanDesk/Resources/Info.plist
       properties:
         CFBundleName: Thuban Desk
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         CFBundleDisplayName: Thuban Desk
         CFBundleIdentifier: com.thuban.desk
         LSMinimumSystemVersion: "15.0"

@@ -224,8 +224,7 @@ struct TodayLinkButton: View {
 extension AppModel {
     /// Account colour: the primary is accent, the next signal, and so on (as in Settings → Accounts and Mail).
     func accountTint(_ account: String) -> CalendarTint {
-        let index = accounts.firstIndex { $0.id == account.lowercased() } ?? 0
-        return index.isMultiple(of: 2) ? .accent : .signal
+        mail.accountTint(account)
     }
 }
 

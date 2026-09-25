@@ -37,6 +37,17 @@ struct InvitationCard: View {
                 Text(event.title).font(.system(size: 14.5, weight: .semibold)).foregroundStyle(theme.inkColor).lineLimit(1)
                 Text(MailInvite.detailLine(event, zone: zone)).font(.system(size: 13)).foregroundStyle(theme.inkDimColor).lineLimit(1)
                 availabilityLine(availability)
+                Button { app.openEvent(invite) } label: {
+                    HStack(spacing: 5) {
+                        Icon(.calendar, size: 12)
+                        Text("Show in Calendar")
+                    }
+                    .font(.system(size: 12.5, weight: .semibold))
+                    .foregroundStyle(theme.brassInkColor)
+                }
+                .buttonStyle(.plain)
+                .padding(.top, 2)
+                .accessibilityLabel("Show \(event.title) in Calendar")
                 if let error { Text(error).font(.system(size: 12)).foregroundStyle(theme.negTextColor).lineLimit(2) }
             }
             .frame(maxWidth: .infinity, alignment: .leading)

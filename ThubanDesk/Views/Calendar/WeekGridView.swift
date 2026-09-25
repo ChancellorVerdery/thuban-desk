@@ -224,7 +224,12 @@ struct WeekGridView: View {
 
     private func scrollToMorning(_ proxy: ScrollViewProxy, blocks: [Block]) {
         let earliest = blocks.map { Int($0.startMinute) / 60 }.min() ?? 7
-        let hour = max(0, min(7, earliest))
+        var hour = max(0, min(7, earliest))
+        // Opened from elsewhere (Today, Mail, search): keep the selected event in view.
+        if let selected = app.calendar.ui.selectedItem, !selected.event.isAllDay {
+            let startHour = Calendar.gregorian(app.zone).component(.hour, from: selected.start(in: app.zone))
+            if startHour >= 12 { hour = max(0, startHour - 3) }
+        }
         DispatchQueue.main.async { proxy.scrollTo(hour, anchor: .top) }
     }
 

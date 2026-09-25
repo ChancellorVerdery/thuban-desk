@@ -46,6 +46,11 @@ struct CalendarAreaView: View {
             }
         }
         .overlay(alignment: .bottom) {
+            if ui.errorMessage == nil, ui.editor == nil, ui.scope == nil {
+                SearchMailPill().padding(.bottom, 18)
+            }
+        }
+        .overlay(alignment: .bottom) {
             if let message = ui.errorMessage {
                 CalendarErrorBanner(message: message) { ui.errorMessage = nil }
                     .padding(.bottom, 18)

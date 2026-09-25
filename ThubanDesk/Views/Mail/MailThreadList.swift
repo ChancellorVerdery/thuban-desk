@@ -15,6 +15,7 @@ struct MailThreadList: View {
         let rows = mail.visibleThreads
         VStack(spacing: 0) {
             header
+            if !mail.searchQuery.isEmpty { SearchEventsStrip() }
             if !mail.checked.isEmpty {
                 bulkBar
             } else {

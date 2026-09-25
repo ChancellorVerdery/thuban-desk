@@ -105,7 +105,11 @@ private struct AgendaRow: View {
         .padding(.vertical, 13)
         .background(isNow ? theme.accentTintColor : .clear, in: RoundedRectangle(cornerRadius: ThubanMetrics.controlRadius, style: .continuous))
         .opacity(isDone ? 0.6 : 1)
+        .contentShape(Rectangle())
+        .onTapGesture { app.openEvent(item) }
+        .help("Open in Calendar")
         .accessibilityElement(children: .combine)
+        .accessibilityAction(named: "Open in Calendar") { app.openEvent(item) }
     }
 
     @ViewBuilder
@@ -306,7 +310,11 @@ struct TomorrowCard: View {
         }
         .padding(.horizontal, 18)
         .frame(height: 34)
+        .contentShape(Rectangle())
+        .onTapGesture { app.openEvent(item) }
+        .help("Open in Calendar")
         .accessibilityElement(children: .combine)
+        .accessibilityAction(named: "Open in Calendar") { app.openEvent(item) }
     }
 
     /// "Fri, Sep 25".

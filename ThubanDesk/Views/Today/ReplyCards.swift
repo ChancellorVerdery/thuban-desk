@@ -192,10 +192,15 @@ struct InvitationsCard: View {
 
             VStack(alignment: .leading, spacing: 2) {
                 SectionHeader(isFirst && count > 1 ? "Invitations · \(count)" : "Invitation")
-                Text(item.event.title)
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(theme.inkColor)
-                    .lineLimit(1)
+                Button { app.openEvent(item) } label: {
+                    Text(item.event.title)
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(theme.inkColor)
+                        .lineLimit(1)
+                }
+                .buttonStyle(.plain)
+                .help("Open in Calendar")
+                .accessibilityLabel("\(item.event.title), open in Calendar")
                 Text(detail(item))
                     .font(ThubanFont.body(13))
                     .foregroundStyle(theme.inkDimColor)

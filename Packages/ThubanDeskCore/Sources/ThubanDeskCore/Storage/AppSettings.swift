@@ -98,7 +98,7 @@ public struct AppSettings: Codable, Equatable, Sendable {
     /// Account new mail is sent from (nil = primary). Replies always use the account the thread arrived in.
     public var defaultSendAccount: String?
     /// Mail list width in points (the list | reader split).
-    public var mailListWidth: Double = 420
+    public var mailListWidth: Double = 468
     /// Pinned threads per account (local only).
     public var pins: [String: [String]] = [:]
     /// Remote images in mail load without asking (default off; trackers are blocked either way).

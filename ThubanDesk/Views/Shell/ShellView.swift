@@ -20,6 +20,10 @@ struct ShellView: View {
         .environment(\.thubanTextScale, app.settings.textSize.scale)
         .ignoresSafeArea()
         .preferredColorScheme(theme.isDark ? .dark : .light)
+        // Integration: the title-bar search spans Mail and Calendar (`DeskSearch`).
+        .onChange(of: app.searchText) { _, text in DeskSearch.shared.update(text: text, app: app) }
+        .onChange(of: app.area) { _, _ in DeskSearch.shared.update(text: app.searchText, app: app) }
+        .onChange(of: app.calendar.revision) { _, _ in DeskSearch.shared.rematchEvents(app: app) }
         .sheet(item: $app.pendingConfirmation) { request in
             ConfirmWriteSheet(request: request) { app.pendingConfirmation = nil }
                 .environment(\.thubanTheme, theme)
@@ -32,14 +36,15 @@ struct ShellView: View {
         if !app.isLoaded {
             Color.clear
         } else if app.area == .settings {
-            SettingsAreaView()
+            if app.hasAccounts && !app.searchText.trimmingCharacters(in: .whitespaces).isEmpty { SearchResultsView() } else { SettingsAreaView() }
         } else if !app.hasAccounts {
             ConnectPrompt()
         } else {
             switch app.area {
             case .calendar: CalendarAreaView()
             case .mail: MailAreaView()
-            case .today: TodayAreaView()
+            case .today:
+                if app.searchText.trimmingCharacters(in: .whitespaces).isEmpty { TodayAreaView() } else { SearchResultsView() }
             case .settings: SettingsAreaView()
             }
         }

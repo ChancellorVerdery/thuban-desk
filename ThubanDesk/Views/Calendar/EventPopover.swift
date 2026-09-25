@@ -31,6 +31,8 @@ struct EventPopover: View {
     @Environment(AppModel.self) private var app
     @Environment(\.thubanTheme) private var theme
     var item: AgendaEvent
+    /// Integration: finding the email the invitation came in (nil = idle).
+    @State private var emailLookup: String?
 
     var body: some View {
         let ui = app.calendar.ui
@@ -78,6 +80,25 @@ struct EventPopover: View {
             if let guests = CalendarText.guestSummary(event) {
                 detailRow(.guests, guests)
             }
+            if isInvitedByOthers(event) {
+                Button {
+                    emailLookup = "Finding the email…"
+                    Task {
+                        let found = await app.openInvitationEmail(for: item)
+                        emailLookup = found ? nil : "No email found for this invitation."
+                    }
+                } label: {
+                    HStack(spacing: 8) {
+                        Icon(.mail, size: 14)
+                        Text(emailLookup ?? emailLinkTitle(event))
+                            .font(ThubanFont.body(13.5, weight: .semibold))
+                    }
+                    .foregroundStyle(emailLookup == nil ? theme.brassInkColor : theme.inkDimColor)
+                }
+                .buttonStyle(.plain)
+                .disabled(emailLookup != nil)
+                .accessibilityLabel("\(emailLinkTitle(event)), open in Mail")
+            }
             let description = HTMLSanitizer.richText(event.description)
             if !description.characters.isEmpty {
                 Text(description)
@@ -104,6 +125,21 @@ struct EventPopover: View {
         .shadow(color: .black.opacity(theme.isDark ? 0.45 : 0.10), radius: 18, y: 6)
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Event details")
+        .onChange(of: item.id) { _, _ in emailLookup = nil }
+    }
+
+    /// An event someone else organized that you're a guest of — its invitation arrived by email.
+    private func isInvitedByOthers(_ event: CalendarEvent) -> Bool {
+        guard let organizer = event.organizer?.email, !organizer.isEmpty, event.organizer?.isSelf != true else { return false }
+        return event.selfAttendee != nil && event.selfAttendee?.organizer != true
+    }
+
+    /// "Invitation email" while unanswered, else "Mail from Maya Chen".
+    private func emailLinkTitle(_ event: CalendarEvent) -> String {
+        if event.needsResponse { return "Invitation email" }
+        let organizer = event.organizer
+        let name = organizer?.displayName ?? organizer?.email.map { String($0.split(separator: "@").first ?? "") } ?? "the organizer"
+        return "Mail from \(name)"
     }
 
     private func detailRow(_ icon: IconName, _ text: String) -> some View {
