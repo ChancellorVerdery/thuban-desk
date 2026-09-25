@@ -137,7 +137,7 @@ enum SmokeHarness {
             rect.origin.y -= contentOrigin.y
             let configuration = WKSnapshotConfiguration()
             configuration.afterScreenUpdates = true
-            if let image = try? await webView.takeSnapshot(configuration: configuration) {
+            if let image = await snapshot(webView, configuration: configuration, timeout: 4) {
                 let sourceY = webView.isFlipped ? webView.bounds.height - visible.maxY : visible.minY
                 overlays.append((rect, image, NSRect(x: visible.minX, y: sourceY, width: visible.width, height: visible.height)))
             }
@@ -163,6 +163,24 @@ enum SmokeHarness {
         try png.write(to: url)
         print("smoke: \(name)")
         return url
+    }
+
+    /// `takeSnapshot(afterScreenUpdates:)` never returns while the display sleeps; give up after `timeout` so the
+    /// walk goes on (the PNG then shows the native layer only).
+    private static func snapshot(_ webView: WKWebView, configuration: WKSnapshotConfiguration, timeout: Double) async -> NSImage? {
+        await withCheckedContinuation { (continuation: CheckedContinuation<NSImage?, Never>) in
+            var finished = false
+            func finish(_ image: NSImage?) {
+                guard !finished else { return }
+                finished = true
+                continuation.resume(returning: image)
+            }
+            webView.takeSnapshot(with: configuration) { image, _ in finish(image) }
+            DispatchQueue.main.asyncAfter(deadline: .now() + timeout) {
+                if !finished { logger.warning("smoke: web view snapshot timed out") }
+                finish(nil)
+            }
+        }
     }
 
     private static func subviews(of view: NSView) -> [NSView] {

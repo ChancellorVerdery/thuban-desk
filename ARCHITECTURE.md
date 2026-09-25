@@ -126,6 +126,10 @@ regenerated on every build).
   (verdict.question = the asking sentence), `app.calendar.pendingInvitations`, RSVP via `app.calendar.rsvp`.
 - Colours: calendars and labels are `CalendarTint` roles → `theme.color(for:)`, `theme.textColor(for:)`,
   `theme.softColor(for:)`. Never draw Google's hex.
+- Cross-area links (lead, `App/DeskLinks.swift`): `DeskSearch.shared` (title-bar search → events via core
+  `SearchMatch` + Gmail `q=` across accounts; Today/Settings show `SearchResultsView`, Mail a `SearchEventsStrip`,
+  Calendar a `SearchMailPill`), `app.openEvent(_:)` (Calendar week + popover), `app.openInvitationEmail(for:)`,
+  and in `AppModel+Today.swift` `requestReply` (opens the reply composer), `requestCompose`, `requestNewEvent`.
 - Loading states: `Resource<T>` + `ResourceStateView` for single values; stores expose `isLoading` / errors.
 
 ## Design rules
