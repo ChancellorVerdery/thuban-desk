@@ -85,6 +85,10 @@ enum IconName: String, CaseIterable {
     case clock
     /// Location
     case location
+    /// Sync (Mail toolbar "Synced 2:38 PM")
+    case sync
+    /// Eye (Mail reader "Load images")
+    case eye
 
     /// The SVG elements (paths, circles, rects) inside the 24×24 viewBox.
     var svg: String {
@@ -130,6 +134,8 @@ enum IconName: String, CaseIterable {
         case .repeats: return #"<path d="M4.5 11V9.5a3 3 0 0 1 3-3h11"/><path d="M15.5 3.5l3 3-3 3"/><path d="M19.5 13v1.5a3 3 0 0 1-3 3h-11"/><path d="M8.5 20.5l-3-3 3-3"/>"#
         case .clock: return #"<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>"#
         case .location: return #"<path d="M12 21s-6.5-6-6.5-11a6.5 6.5 0 0 1 13 0c0 5-6.5 11-6.5 11z"/><circle cx="12" cy="10" r="2.3"/>"#
+        case .sync: return #"<path d="M19.5 11a7.5 7.5 0 0 0-13.6-3.5"/><path d="M4.5 13a7.5 7.5 0 0 0 13.6 3.5"/><path d="M5.5 3.5v4h4"/><path d="M18.5 20.5v-4h-4"/>"#
+        case .eye: return #"<path d="M2.5 12s3.5-6.5 9.5-6.5 9.5 6.5 9.5 6.5-3.5 6.5-9.5 6.5S2.5 12 2.5 12z"/><circle cx="12" cy="12" r="2.8"/>"#
         }
     }
 
