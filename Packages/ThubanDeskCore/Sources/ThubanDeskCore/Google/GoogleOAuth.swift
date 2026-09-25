@@ -152,6 +152,8 @@ public struct GoogleSignIn: Sendable {
         self.timeout = timeout
     }
 
+    #if os(macOS)
+    /// macOS: loopback listener + the system browser. (iOS uses `GoogleMobileSignIn`.)
     public func run(loginHint: String? = nil, now: Date = Date()) async throws -> GoogleAccount {
         let receiver = LoopbackReceiver()
         let redirect = try await receiver.start()
@@ -169,6 +171,7 @@ public struct GoogleSignIn: Sendable {
         let tokens = try await oauth.exchange(code: code, verifier: pkce.verifier, redirectURI: redirect)
         return try Self.account(from: tokens, now: now)
     }
+    #endif
 
     /// Builds the account record from a code exchange (email from the id_token).
     public static func account(from tokens: TokenResponse, now: Date = Date()) throws -> GoogleAccount {

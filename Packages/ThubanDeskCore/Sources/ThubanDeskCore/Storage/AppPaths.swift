@@ -7,7 +7,7 @@ public enum AppPaths {
     /// Set by tests to redirect every path without touching the process environment.
     nonisolated(unsafe) public static var overrideHome: URL?
 
-    /// `~/Library/Application Support/Thuban Desk` unless overridden. Fixture mode never uses the real folder:
+    /// `~/Library/Application Support/Thuban Desk` (on iOS: Application Support inside the app container) unless overridden. Fixture mode never uses the real folder:
     /// without `THUBAN_DESK_HOME` it gets a throwaway temp directory, so the fake Google (which answers
     /// `invalid_grant` to any real refresh token) can never disconnect — and erase — the user's real accounts.
     public static var home: URL {
@@ -32,10 +32,18 @@ public enum AppPaths {
     /// Downloaded attachments.
     public static var downloadsDirectory: URL { home.appendingPathComponent("attachments", isDirectory: true) }
 
-    /// Creates the home tree (idempotent).
+    /// Creates the home tree (idempotent). On iOS the folders carry `NSFileProtectionComplete`, so every file created
+    /// in them (credentials, settings, cached mail and events) inherits it.
     public static func ensureDirectories() throws {
+        var attributes: [FileAttributeKey: Any] = [.posixPermissions: 0o700]
+        #if os(iOS)
+        attributes[.protectionKey] = FileProtectionType.complete
+        #endif
         for url in [home, cacheDirectory, downloadsDirectory] {
-            try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
+            try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true, attributes: attributes)
+            #if os(iOS)
+            try? FileManager.default.setAttributes([.protectionKey: FileProtectionType.complete], ofItemAtPath: url.path)
+            #endif
         }
     }
 }

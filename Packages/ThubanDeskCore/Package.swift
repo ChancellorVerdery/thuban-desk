@@ -3,7 +3,7 @@ import PackageDescription
 
 let package = Package(
     name: "ThubanDeskCore",
-    platforms: [.macOS(.v15)],
+    platforms: [.macOS(.v15), .iOS(.v18)],
     products: [
         .library(name: "ThubanDeskCore", targets: ["ThubanDeskCore"]),
         .executable(name: "thuban-desk-live-check", targets: ["ThubanDeskLiveCheck"]),

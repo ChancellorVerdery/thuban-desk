@@ -109,7 +109,7 @@ public struct CredentialsFile: Codable, Equatable, Sendable {
     }
 }
 
-/// Plain-file credential storage (mode 0600 under the app home). No Keychain by design — see `AppPaths.credentialsFile`.
+/// Plain-file credential storage (mode 0600 under the app home; NSFileProtectionComplete on iOS). No Keychain by design — see `AppPaths.credentialsFile`.
 public enum CredentialStore {
     public static func load(from url: URL = AppPaths.credentialsFile) throws -> CredentialsFile {
         try JSONFile.read(CredentialsFile.self, from: url) ?? CredentialsFile()
@@ -117,7 +117,7 @@ public enum CredentialStore {
 
     public static func save(_ file: CredentialsFile, to url: URL = AppPaths.credentialsFile) throws {
         try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
-        try JSONFile.write(file, to: url, permissions: 0o600)
+        try JSONFile.write(file, to: url, permissions: 0o600, completeProtection: true)
     }
 
     public static func clear(at url: URL = AppPaths.credentialsFile) throws {

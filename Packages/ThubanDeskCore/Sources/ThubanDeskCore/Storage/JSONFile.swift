@@ -25,11 +25,16 @@ public enum JSONFile {
         }
     }
 
-    /// Writes atomically; `permissions` (e.g. 0o600) is applied after the write.
-    public static func write<T: Encodable>(_ value: T, to url: URL, permissions: Int? = nil) throws {
+    /// Writes atomically; `permissions` (e.g. 0o600) is applied after the write. `completeProtection` (credentials)
+    /// adds `NSFileProtectionComplete` on iOS: the file is unreadable while the device is locked.
+    public static func write<T: Encodable>(_ value: T, to url: URL, permissions: Int? = nil, completeProtection: Bool = false) throws {
         do {
             try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
-            try encoder.encode(value).write(to: url, options: .atomic)
+            var options: Data.WritingOptions = .atomic
+            #if os(iOS)
+            if completeProtection { options.insert(.completeFileProtection) }
+            #endif
+            try encoder.encode(value).write(to: url, options: options)
             if let permissions {
                 try FileManager.default.setAttributes([.posixPermissions: permissions], ofItemAtPath: url.path)
             }

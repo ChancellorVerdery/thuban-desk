@@ -1,6 +1,8 @@
+#if os(macOS)
 import Foundation
 import Network
 
+/// macOS only: iOS signs in with ASWebAuthenticationSession and a custom-scheme redirect (`GoogleMobileSignIn`).
 /// A one-shot HTTP listener on `127.0.0.1:<random port>` that receives Google's OAuth redirect
 /// (`GET /?code=…&state=…` or `?error=…`), answers the browser with a short page and hands the query back.
 /// Requests without `code` / `error` (favicon, prefetch) get a 404 and are ignored. Once `expect(state:)` is set,
@@ -181,3 +183,5 @@ public final class LoopbackReceiver: @unchecked Sendable {
 private final class Flag: @unchecked Sendable {
     var value = false
 }
+
+#endif
