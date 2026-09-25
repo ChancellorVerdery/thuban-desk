@@ -23,7 +23,7 @@ fi
 rm -rf "$OUT"; mkdir -p "$OUT"
 
 run_device() {
-  local name="$1" type="$2" clock="$3" udid data state last=-1 deadline rc=0 line="" index="" scene=""
+  local name="$1" type="$2" clock="$3" udid data state last=-1 deadline rc=0 line="" index="" scene="" shot=""
   udid=$(ios_sim_udid "$name" "$type") || return 1
   echo "== $name ($udid)"
   ios_sim_boot "$udid"
@@ -45,7 +45,11 @@ run_device() {
       if [[ "$line" == error* ]]; then echo "   FAILED: $line"; rc=1; break; fi
       index="${line%% *}"; scene="${line#* }"
       if [[ "$index" == <-> ]] && (( index > last )); then
-        xcrun simctl io "$udid" screenshot --type=png "$OUT/$scene.png" > /dev/null 2>&1 && echo "   $scene"
+        # A screenshot occasionally stalls; give it 15 s, then move on (the scene is reported missing).
+        xcrun simctl io "$udid" screenshot --type=png "$OUT/$scene.png" > /dev/null 2>&1 &
+        shot=$!
+        for _ in {1..75}; do kill -0 $shot 2>/dev/null || break; sleep 0.2; done
+        if kill -0 $shot 2>/dev/null; then kill $shot 2>/dev/null; echo "   $scene: screenshot timed out"; rc=3; else echo "   $scene"; fi
         print -n "$index" > "$data/Documents/smoke/ack.txt"
         last=$index
       fi
