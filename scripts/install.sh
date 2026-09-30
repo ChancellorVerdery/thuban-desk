@@ -9,5 +9,7 @@ WAS_RUNNING=0
 if pgrep -f "/Applications/Thuban Desk.app/Contents/MacOS" >/dev/null; then WAS_RUNNING=1; pkill -f "/Applications/Thuban Desk.app/Contents/MacOS"; sleep 1; fi
 rm -rf "$DEST"
 cp -R "$SRC" "$DEST" || exit 1
+# A fresh bundle has the static icon; redraw it in the shared Thuban scheme (draws, stamps, exits — no window).
+"$DEST/Contents/MacOS/$(/usr/libexec/PlistBuddy -c 'Print CFBundleExecutable' "$DEST/Contents/Info.plist")" --refresh-icon >/dev/null 2>&1 || true
 echo "Installed $DEST"
 if [[ "$WAS_RUNNING" == "1" ]]; then open "$DEST"; fi
