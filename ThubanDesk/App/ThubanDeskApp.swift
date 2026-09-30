@@ -79,6 +79,11 @@ private struct CalendarViewCommands: View {
 }
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
+    func applicationWillFinishLaunching(_ notification: Notification) {
+        // `--refresh-icon` (sent by another Thuban app after a scheme change): stamp the icon and exit before any UI.
+        MainActor.assumeIsolated { SharedTheme.handleRefreshLaunch { AppIconRenderer.render(theme: $0) } }
+    }
+
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApplication.shared.setActivationPolicy(.regular)
     }

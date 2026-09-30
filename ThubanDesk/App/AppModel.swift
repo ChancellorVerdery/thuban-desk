@@ -22,7 +22,12 @@ final class AppModel {
         didSet {
             guard settings != oldValue else { return }
             persistSettings()
-            if settings.theme != oldValue.theme { recomputeTheme() }
+            if settings.theme != oldValue.theme {
+                recomputeTheme()
+                #if os(macOS)
+                SharedTheme.publish(settings.theme)
+                #endif
+            }
             if settings.writesEnabled != oldValue.writesEnabled { gateFlags.set(writes: settings.writesEnabled, send: sendAllowed) }
             if settings.refreshMinutes != oldValue.refreshMinutes, isLoaded { startRefreshTimer() }
         }
@@ -183,7 +188,12 @@ final class AppModel {
             session = URLSession(configuration: .default)
         }
         self.fixture = fixture
-        settings = SettingsStore.load()
+        var loadedSettings = SettingsStore.load()
+        #if os(macOS)
+        // One scheme for every Thuban app: the shared selection wins over this app's saved one.
+        if let shared = SharedTheme.load() { loadedSettings.theme = shared }
+        #endif
+        settings = loadedSettings
         var file = (try? CredentialStore.load()) ?? CredentialsFile()
         #if os(iOS)
         // iOS: the Google iOS client from the build (GOOGLE_IOS_CLIENT_ID) unless the user entered one in Settings.
@@ -216,6 +226,9 @@ final class AppModel {
         guard !isLoaded else { return }
         #if os(macOS)
         if appearanceObservation == nil { observeAppearance() }
+        observeSharedTheme()
+        // First Thuban app to run with sharing seeds the file with its own scheme.
+        if SharedTheme.load() == nil { SharedTheme.publish(settings.theme) }
         #endif
         recomputeTheme()
         isLoaded = true
@@ -406,6 +419,17 @@ final class AppModel {
     }
 
     #if os(macOS)
+    @ObservationIgnored private var sharedThemeObserver: NSObjectProtocol?
+
+    /// Another Thuban app changed the scheme: adopt it (publishing again is a no-op once the file matches).
+    private func observeSharedTheme() {
+        guard sharedThemeObserver == nil else { return }
+        sharedThemeObserver = SharedTheme.observe { [weak self] selection in
+            guard let self, self.settings.theme != selection else { return }
+            self.settings.theme = selection
+        }
+    }
+
     private func observeAppearance() {
         appearanceObservation = NSApplication.shared.observe(\.effectiveAppearance, options: [.new]) { [weak self] _, _ in
             Task { @MainActor [weak self] in

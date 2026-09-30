@@ -40,6 +40,7 @@ targets:
         NSPrincipalClass: NSApplication
         NSSupportsAutomaticTermination: false
         NSSupportsSuddenTermination: false
+        ThubanSharedTheme: true
     entitlements:
       path: ThubanDesk/Resources/ThubanDesk.entitlements
       properties:
