@@ -4,7 +4,13 @@ import ThubanDeskCore
 @main
 struct ThubanDeskApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var delegate
-    @State private var appModel = AppModel()
+    @State private var appModel: AppModel
+
+    init() {
+        // Must run before anything touches NSApplication (see SharedTheme): an icon-only launch exits here.
+        SharedTheme.refreshIconAndExitIfRequested { AppIconRenderer.render(theme: $0) }
+        _appModel = State(initialValue: AppModel())
+    }
 
     var body: some Scene {
         WindowGroup("Thuban Desk") {
@@ -81,7 +87,6 @@ private struct CalendarViewCommands: View {
 final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationWillFinishLaunching(_ notification: Notification) {
         // `--refresh-icon` (sent by another Thuban app after a scheme change): stamp the icon and exit before any UI.
-        MainActor.assumeIsolated { SharedTheme.handleRefreshLaunch { AppIconRenderer.render(theme: $0) } }
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
