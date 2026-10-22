@@ -181,11 +181,11 @@ client secret.
 
 Thuban Desk shares its theme engine, components and color schemes with the other Thuban apps:
 
-- [Thuban Study](https://github.com/GITHUB_USER/thuban-study)
-- [Thuban Graph](https://github.com/GITHUB_USER/thuban-graph)
-- [Thuban Canvas](https://github.com/GITHUB_USER/thuban-canvas)
-- [Thuban Gym](https://github.com/GITHUB_USER/thuban-gym)
-- [Thuban Planner](https://github.com/GITHUB_USER/thuban-planner)
+- [Thuban Study](https://github.com/ChancellorVerdery/thuban-study)
+- [Thuban Graph](https://github.com/ChancellorVerdery/thuban-graph)
+- [Thuban Canvas](https://github.com/ChancellorVerdery/thuban-canvas)
+- [Thuban Gym](https://github.com/ChancellorVerdery/thuban-gym)
+- [Thuban Planner](https://github.com/ChancellorVerdery/thuban-planner)
 
 ---
 
