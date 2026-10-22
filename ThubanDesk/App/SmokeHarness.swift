@@ -118,11 +118,13 @@ enum SmokeHarness {
     }
 
     /// Renders the window's native content (`cacheDisplay`) and composites every visible `WKWebView` snapshot at its
-    /// window position. No screen-recording permission involved.
+    /// window position. No screen-recording permission involved. Always renders at ≥ 2× (README screenshots stay
+    /// retina even when the main display is 1×).
     private static func capture(window: NSWindow, name: String, in directory: URL) async throws -> URL {
         guard let content = window.contentView else { throw ThubanError.store("smoke: window has no content view") }
         let bounds = content.bounds
-        guard let nativeRep = content.bitmapImageRepForCachingDisplay(in: bounds) else { throw ThubanError.store("smoke: no bitmap for \(name)") }
+        let scale = max(window.backingScaleFactor, 2)
+        guard let nativeRep = bitmap(points: bounds.size, scale: scale) else { throw ThubanError.store("smoke: no bitmap for \(name)") }
         content.cacheDisplay(in: bounds, to: nativeRep)
         let native = NSImage(size: bounds.size)
         native.addRepresentation(nativeRep)
@@ -137,19 +139,16 @@ enum SmokeHarness {
             rect.origin.y -= contentOrigin.y
             let configuration = WKSnapshotConfiguration()
             configuration.afterScreenUpdates = true
+            // snapshotWidth is in points and comes back at the screen's scale: widen it so the image has ≥ `scale` px/pt.
+            configuration.snapshotWidth = NSNumber(value: Double(webView.bounds.width * scale / window.backingScaleFactor))
             if let image = await snapshot(webView, configuration: configuration, timeout: 4) {
+                let k = image.size.width / webView.bounds.width  // image points per web view point
                 let sourceY = webView.isFlipped ? webView.bounds.height - visible.maxY : visible.minY
-                overlays.append((rect, image, NSRect(x: visible.minX, y: sourceY, width: visible.width, height: visible.height)))
+                overlays.append((rect, image, NSRect(x: visible.minX * k, y: sourceY * k, width: visible.width * k, height: visible.height * k)))
             }
         }
 
-        let scale = window.backingScaleFactor
-        guard let output = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: Int(bounds.width * scale), pixelsHigh: Int(bounds.height * scale),
-                                            bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
-                                            colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0) else {
-            throw ThubanError.store("smoke: could not allocate the output bitmap")
-        }
-        output.size = bounds.size
+        guard let output = bitmap(points: bounds.size, scale: scale) else { throw ThubanError.store("smoke: could not allocate the output bitmap") }
         NSGraphicsContext.saveGraphicsState()
         defer { NSGraphicsContext.restoreGraphicsState() }
         guard let context = NSGraphicsContext(bitmapImageRep: output) else { throw ThubanError.store("smoke: no graphics context") }
@@ -163,6 +162,15 @@ enum SmokeHarness {
         try png.write(to: url)
         print("smoke: \(name)")
         return url
+    }
+
+    /// An RGBA bitmap of `points × scale` pixels whose size is `points`, so drawing into it renders at `scale`.
+    private static func bitmap(points: NSSize, scale: CGFloat) -> NSBitmapImageRep? {
+        let rep = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: Int((points.width * scale).rounded()), pixelsHigh: Int((points.height * scale).rounded()),
+                                   bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
+                                   colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0)
+        rep?.size = points
+        return rep
     }
 
     /// `takeSnapshot(afterScreenUpdates:)` never returns while the display sleeps; give up after `timeout` so the
